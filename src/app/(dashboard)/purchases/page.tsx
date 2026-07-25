@@ -286,11 +286,11 @@ export default function PurchasesPage() {
               </div>
               <div className="field">
                 <label htmlFor="transportCost">Total transport cost</label>
-                <input className="input" id="transportCost" min="0" required type="number" value={form.transportCost} onChange={(event) => setForm({ ...form, transportCost: Number(event.target.value) })} />
+                <input className="input" id="transportCost" min="0" required type="number" value={form.transportCost || ""} onChange={(event) => setForm({ ...form, transportCost: Number(event.target.value) })} />
               </div>
               <div className="field">
                 <label htmlFor="otherCost">Other shared purchase cost</label>
-                <input className="input" id="otherCost" min="0" required type="number" value={form.otherCost} onChange={(event) => setForm({ ...form, otherCost: Number(event.target.value) })} />
+                <input className="input" id="otherCost" min="0" required type="number" value={form.otherCost || ""} onChange={(event) => setForm({ ...form, otherCost: Number(event.target.value) })} />
               </div>
               <div className="field">
                 <label htmlFor="purchaseNotes">Notes <span className="optional-label">(optional)</span></label>
@@ -340,11 +340,11 @@ export default function PurchasesPage() {
                       </div>
                       <div className="field">
                         <label htmlFor={`purchaseQty-${item.key}`}>Quantity</label>
-                        <input className="input" id={`purchaseQty-${item.key}`} min="1" required type="number" value={item.quantity} onChange={(event) => updateLine(item.key, { quantity: Number(event.target.value) })} />
+                        <input className="input" id={`purchaseQty-${item.key}`} min="1" required type="number" value={item.quantity || ""} onChange={(event) => updateLine(item.key, { quantity: Number(event.target.value) })} />
                       </div>
                       <div className="field">
                         <label htmlFor={`purchaseUnitCost-${item.key}`}>Cost per shirt</label>
-                        <input className="input" id={`purchaseUnitCost-${item.key}`} min="0" required type="number" value={item.unitPurchaseCost} onChange={(event) => updateLine(item.key, { unitPurchaseCost: Number(event.target.value) })} />
+                        <input className="input" id={`purchaseUnitCost-${item.key}`} min="0" required type="number" value={item.unitPurchaseCost || ""} onChange={(event) => updateLine(item.key, { unitPurchaseCost: Number(event.target.value) })} />
                       </div>
                       <div className="purchase-line-total">
                         <span>Estimated landed/unit</span>

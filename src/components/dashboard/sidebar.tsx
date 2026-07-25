@@ -61,24 +61,27 @@ export default function Sidebar({ role }: { role: UserRole }) {
           </Link>
         ))}
 
-        <details
-          className="sidebar-advanced"
-          open={advancedActive || undefined}
-          key={pathname}
-        >
-          <summary>Advanced tools</summary>
-          <div className="sidebar-advanced-links">
-            {visibleAdvancedLinks.map((link) => (
-              <Link
-                className={`nav-link nav-link-secondary ${isLinkActive(pathname, link.href) ? "nav-link-active" : ""}`}
-                href={link.href}
-                key={link.href}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        </details>
+       <details
+  className="sidebar-advanced"
+  open={advancedActive}
+  key={pathname}
+>
+  <summary>Advanced tools</summary>
+
+  <div className="sidebar-advanced-links">
+    {visibleAdvancedLinks.map((link) => (
+      <Link
+        className={`nav-link nav-link-secondary ${
+          isLinkActive(pathname, link.href) ? "nav-link-active" : ""
+        }`}
+        href={link.href}
+        key={link.href}
+      >
+        {link.label}
+      </Link>
+    ))}
+  </div>
+</details>
       </nav>
 
       <div className="sidebar-footer">Daily work: purchase stock, add orders, update delivery, and review profit.</div>

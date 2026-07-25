@@ -75,8 +75,8 @@ export default function OrdersPage() {
   const selectedVariant = variants.find((item) => item.id === form.garmentVariantId);
   const selectedProduct = products.find((item) => item.id === form.productDesignId);
   const projected = useMemo(() => ({
-    revenue: form.unitSellingPrice * form.quantity + form.deliveryCharged - form.discount,
-    stockCost: (selectedVariant?.effectiveUnitCost ?? 0) * form.quantity,
+    revenue: (Number(form.unitSellingPrice) || 0) * (Number(form.quantity) || 0) + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0),
+    stockCost: (selectedVariant?.effectiveUnitCost ?? 0) * (Number(form.quantity) || 0),
   }), [form, selectedVariant]);
 
   function updateSelection(productId: string, variantId = form.garmentVariantId) {
@@ -104,13 +104,13 @@ export default function OrdersPage() {
         items: [{
           productDesignId: form.productDesignId,
           garmentVariantId: form.garmentVariantId,
-          quantity: form.quantity,
-          unitSellingPrice: form.unitSellingPrice,
-          printingCost: form.printingCost,
+          quantity: Number(form.quantity) || 1,
+          unitSellingPrice: Number(form.unitSellingPrice) || 0,
+          printingCost: Number(form.printingCost) || 0,
         }],
-        deliveryCharged: form.deliveryCharged,
-        discount: form.discount,
-        advancePayment: form.advancePayment,
+        deliveryCharged: Number(form.deliveryCharged) || 0,
+        discount: Number(form.discount) || 0,
+        advancePayment: Number(form.advancePayment) || 0,
         reserveStock: form.reserveStock,
       };
       const result = await apiFetch<{ success: true; message: string }>("/orders", { method: "POST", body: JSON.stringify(payload) });
@@ -150,12 +150,12 @@ export default function OrdersPage() {
             <div className="field field-span-3"><label>Address</label><textarea className="input textarea" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
             <div className="field"><label>Design</label><select className="select" required value={form.productDesignId} onChange={(e) => updateSelection(e.target.value)}><option value="">Select</option>{products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
             <div className="field"><label>Blank shirt SKU</label><select className="select" required value={form.garmentVariantId} onChange={(e) => updateSelection(form.productDesignId, e.target.value)}><option value="">Select</option>{variants.map((item) => <option key={item.id} value={item.id}>{item.sku} · {item.availableQty} available</option>)}</select></div>
-            <div className="field"><label>Quantity</label><input className="input" min="1" type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} /></div>
-            <div className="field"><label>Selling price / shirt</label><input className="input" min="0" type="number" value={form.unitSellingPrice} onChange={(e) => setForm({ ...form, unitSellingPrice: Number(e.target.value) })} /></div>
-            <div className="field"><label>Printing cost total</label><input className="input" min="0" type="number" value={form.printingCost} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} /></div>
-            <div className="field"><label>Delivery charged to customer</label><input className="input" min="0" type="number" value={form.deliveryCharged} onChange={(e) => setForm({ ...form, deliveryCharged: Number(e.target.value) })} /></div>
-            <div className="field"><label>Discount</label><input className="input" min="0" type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: Number(e.target.value) })} /></div>
-            <div className="field"><label>Advance payment</label><input className="input" min="0" type="number" value={form.advancePayment} onChange={(e) => setForm({ ...form, advancePayment: Number(e.target.value) })} /></div>
+            <div className="field"><label>Quantity</label><input className="input" min="1" type="number" value={form.quantity || ""} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} /></div>
+            <div className="field"><label>Selling price / shirt</label><input className="input" min="0" type="number" value={form.unitSellingPrice || ""} onChange={(e) => setForm({ ...form, unitSellingPrice: Number(e.target.value) })} /></div>
+            <div className="field"><label>Printing cost total</label><input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} /></div>
+            <div className="field"><label>Delivery charged to customer</label><input className="input" min="0" type="number" value={form.deliveryCharged || ""} onChange={(e) => setForm({ ...form, deliveryCharged: Number(e.target.value) })} /></div>
+            <div className="field"><label>Discount</label><input className="input" min="0" type="number" value={form.discount || ""} onChange={(e) => setForm({ ...form, discount: Number(e.target.value) })} /></div>
+            <div className="field"><label>Advance payment</label><input className="input" min="0" type="number" value={form.advancePayment || ""} onChange={(e) => setForm({ ...form, advancePayment: Number(e.target.value) })} /></div>
             <div className="field"><label>Ad campaign</label><select className="select" value={form.adCampaignId} onChange={(e) => setForm({ ...form, adCampaignId: e.target.value })}><option value="">None</option>{campaigns.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
             <div className="field checkbox-field"><label><input checked={form.reserveStock} type="checkbox" onChange={(e) => setForm({ ...form, reserveStock: e.target.checked })} /> Reserve stock now</label></div>
           </div>
