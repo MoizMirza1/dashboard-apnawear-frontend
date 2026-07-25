@@ -1,0 +1,715 @@
+diff --git a/src/app/(dashboard)/products/page.tsx b/src/app/(dashboard)/products/page.tsx
+index e706c65..a739c8f 100644
+--- a/src/app/(dashboard)/products/page.tsx
++++ b/src/app/(dashboard)/products/page.tsx
+@@ -104,7 +104,7 @@ export default function ProductsPage() {
+       <div className="page-header">
+         <div>
+           <h1>Product Designs</h1>
+-          <p className="muted">Printed design catalog. Blank-shirt stock is managed separately.</p>
++          <p className="muted">Create each print design once, then reuse it in as many customer orders as needed.</p>
+         </div>
+         <span className="badge">{products.length} DESIGNS</span>
+       </div>
+@@ -114,7 +114,7 @@ export default function ProductsPage() {
+ 
+       <section className="card card-padding">
+         <h2 className="section-title">{editingId ? "Edit design" : "Add a design"}</h2>
+-        <p className="section-copy">Set separate selling prices for Regular and Drop Shoulder tees.</p>
++        <p className="section-copy">These are customer prices for the complete printed shirt—not the printing vendor cost. Printing cost is entered on the order.</p>
+         <form className="form" onSubmit={submit}>
+           <div className="form-grid-3">
+             <div className="field">
+@@ -133,11 +133,11 @@ export default function ProductsPage() {
+               </select>
+             </div>
+             <div className="field">
+-              <label htmlFor="regularPrice">Regular selling price</label>
++              <label htmlFor="regularPrice">Complete Regular printed shirt price</label>
+               <input className="input" id="regularPrice" min="0" required type="number" value={form.regularSellingPrice} onChange={(event) => setForm({ ...form, regularSellingPrice: Number(event.target.value) })} />
+             </div>
+             <div className="field">
+-              <label htmlFor="dropPrice">Drop Shoulder selling price</label>
++              <label htmlFor="dropPrice">Complete Drop Shoulder printed shirt price</label>
+               <input className="input" id="dropPrice" min="0" required type="number" value={form.dropShoulderSellingPrice} onChange={(event) => setForm({ ...form, dropShoulderSellingPrice: Number(event.target.value) })} />
+             </div>
+             <div className="field field-span-3">
+@@ -155,7 +155,7 @@ export default function ProductsPage() {
+       <section className="card users-table-card">
+         <div className="table-wrap">
+           <table className="table">
+-            <thead><tr><th>Design</th><th>Regular</th><th>Drop Shoulder</th><th>Status</th><th>Updated</th><th>Action</th></tr></thead>
++            <thead><tr><th>Reusable Design</th><th>Regular Customer Price</th><th>Drop Shoulder Customer Price</th><th>Status</th><th>Updated</th><th>Action</th></tr></thead>
+             <tbody>
+               {products.map((product) => (
+                 <tr key={product.id}>
+diff --git a/src/app/(dashboard)/purchases/page.tsx b/src/app/(dashboard)/purchases/page.tsx
+index 98e0709..6b9094b 100644
+--- a/src/app/(dashboard)/purchases/page.tsx
++++ b/src/app/(dashboard)/purchases/page.tsx
+@@ -1,16 +1,22 @@
+ "use client";
+ 
++import Link from "next/link";
+ import { FormEvent, useEffect, useMemo, useState } from "react";
+ import LoadingScreen from "@/components/common/loading-screen";
+ import { apiFetch } from "@/lib/api";
+ import { formatCurrency, formatDate, labelize } from "@/lib/format";
+ import type { GarmentVariant, PurchaseBatch, Supplier } from "@/types";
+ 
+-type PurchaseForm = {
+-  supplierId: string;
++type PurchaseLine = {
++  key: string;
+   variantId: string;
+   quantity: number;
+   unitPurchaseCost: number;
++};
++
++type PurchaseForm = {
++  supplierId: string;
++  items: PurchaseLine[];
+   transportCost: number;
+   otherCost: number;
+   receivedAt: string;
+@@ -19,23 +25,37 @@ type PurchaseForm = {
+ };
+ 
+ const today = new Date().toISOString().slice(0, 10);
+-const initialForm: PurchaseForm = {
+-  supplierId: "",
+-  variantId: "",
+-  quantity: 10,
+-  unitPurchaseCost: 400,
+-  transportCost: 0,
+-  otherCost: 0,
+-  receivedAt: today,
+-  invoiceReference: "",
+-  notes: "",
+-};
++
++function lineKey(): string {
++  return `line-${Date.now()}-${Math.random().toString(16).slice(2)}`;
++}
++
++function newLine(variant?: GarmentVariant): PurchaseLine {
++  return {
++    key: lineKey(),
++    variantId: variant?.id ?? "",
++    quantity: 1,
++    unitPurchaseCost: variant?.defaultUnitCost ?? 400,
++  };
++}
++
++function initialForm(): PurchaseForm {
++  return {
++    supplierId: "",
++    items: [newLine()],
++    transportCost: 0,
++    otherCost: 0,
++    receivedAt: today,
++    invoiceReference: "",
++    notes: "",
++  };
++}
+ 
+ export default function PurchasesPage() {
+   const [purchases, setPurchases] = useState<PurchaseBatch[]>([]);
+   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+   const [variants, setVariants] = useState<GarmentVariant[]>([]);
+-  const [form, setForm] = useState<PurchaseForm>(initialForm);
++  const [form, setForm] = useState<PurchaseForm>(() => initialForm());
+   const [loading, setLoading] = useState(true);
+   const [saving, setSaving] = useState(false);
+   const [error, setError] = useState("");
+@@ -51,15 +71,19 @@ export default function PurchasesPage() {
+       setPurchases(purchaseResponse.purchases);
+       setSuppliers(supplierResponse.suppliers);
+       setVariants(variantResponse.variants);
+-      setForm((current) => {
+-        const variant = variantResponse.variants.find((item) => item.id === current.variantId) ?? variantResponse.variants[0];
+-        return {
+-          ...current,
+-          supplierId: current.supplierId || supplierResponse.suppliers[0]?.id || "",
+-          variantId: variant?.id || "",
+-          unitPurchaseCost: variant?.defaultUnitCost ?? current.unitPurchaseCost,
+-        };
+-      });
++      setForm((current) => ({
++        ...current,
++        supplierId: current.supplierId || supplierResponse.suppliers[0]?.id || "",
++        items: current.items.map((item, index) => {
++          if (item.variantId) return item;
++          const variant = variantResponse.variants[index] ?? variantResponse.variants[0];
++          return {
++            ...item,
++            variantId: variant?.id ?? "",
++            unitPurchaseCost: variant?.defaultUnitCost ?? item.unitPurchaseCost,
++          };
++        }),
++      }));
+     } catch (requestError) {
+       setError((requestError as Error).message);
+     } finally {
+@@ -67,80 +91,349 @@ export default function PurchasesPage() {
+     }
+   }
+ 
+-  useEffect(() => { void load(); }, []);
++  useEffect(() => {
++    void load();
++  }, []);
+ 
+   const totals = useMemo(() => {
+-    const totalCost = form.quantity * form.unitPurchaseCost + form.transportCost + form.otherCost;
+-    return { totalCost, landedCost: form.quantity > 0 ? totalCost / form.quantity : 0 };
++    const totalQuantity = form.items.reduce((sum, item) => sum + Math.max(item.quantity, 0), 0);
++    const shirtCost = form.items.reduce(
++      (sum, item) => sum + Math.max(item.quantity, 0) * Math.max(item.unitPurchaseCost, 0),
++      0,
++    );
++    const sharedCost = form.transportCost + form.otherCost;
++    const totalCost = shirtCost + sharedCost;
++    const sharedCostPerShirt = totalQuantity > 0 ? sharedCost / totalQuantity : 0;
++
++    return {
++      totalQuantity,
++      shirtCost,
++      sharedCost,
++      totalCost,
++      sharedCostPerShirt,
++    };
+   }, [form]);
+ 
+-  function selectVariant(variantId: string) {
++  const purchaseGroups = useMemo(() => {
++    const groups = new Map<
++      string,
++      {
++        purchaseNumber: string;
++        supplier: PurchaseBatch["supplier"];
++        invoiceReference: string;
++        receivedAt: string;
++        createdAt: string;
++        items: PurchaseBatch[];
++        totalUnits: number;
++        transportCost: number;
++        otherCost: number;
++        totalCost: number;
++      }
++    >();
++
++    for (const purchase of purchases) {
++      const purchaseNumber = purchase.purchaseNumber || purchase.batchNumber;
++      const existing = groups.get(purchaseNumber);
++      if (existing) {
++        existing.items.push(purchase);
++        existing.totalUnits += purchase.quantity;
++        existing.transportCost += purchase.transportCost;
++        existing.otherCost += purchase.otherCost;
++        existing.totalCost += purchase.totalCost;
++      } else {
++        groups.set(purchaseNumber, {
++          purchaseNumber,
++          supplier: purchase.supplier,
++          invoiceReference: purchase.invoiceReference,
++          receivedAt: purchase.receivedAt,
++          createdAt: purchase.createdAt,
++          items: [purchase],
++          totalUnits: purchase.quantity,
++          transportCost: purchase.transportCost,
++          otherCost: purchase.otherCost,
++          totalCost: purchase.totalCost,
++        });
++      }
++    }
++
++    return Array.from(groups.values()).sort(
++      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
++    );
++  }, [purchases]);
++
++  function updateLine(key: string, patch: Partial<PurchaseLine>) {
++    setForm((current) => ({
++      ...current,
++      items: current.items.map((item) => (item.key === key ? { ...item, ...patch } : item)),
++    }));
++  }
++
++  function selectVariant(key: string, variantId: string) {
+     const variant = variants.find((item) => item.id === variantId);
+-    setForm((current) => ({ ...current, variantId, unitPurchaseCost: variant?.defaultUnitCost ?? current.unitPurchaseCost }));
++    updateLine(key, {
++      variantId,
++      unitPurchaseCost: variant?.defaultUnitCost ?? 0,
++    });
++  }
++
++  function addLine() {
++    const usedIds = new Set(form.items.map((item) => item.variantId));
++    const nextVariant = variants.find((variant) => !usedIds.has(variant.id)) ?? variants[0];
++    setForm((current) => ({ ...current, items: [...current.items, newLine(nextVariant)] }));
++  }
++
++  function removeLine(key: string) {
++    setForm((current) => ({
++      ...current,
++      items: current.items.length > 1 ? current.items.filter((item) => item.key !== key) : current.items,
++    }));
+   }
+ 
+   async function submit(event: FormEvent) {
+-    event.preventDefault(); setSaving(true); setError(""); setMessage("");
++    event.preventDefault();
++    setSaving(true);
++    setError("");
++    setMessage("");
+     try {
+-      const response = await apiFetch<{ success: true; message: string }>("/purchases", {
+-        method: "POST",
+-        body: JSON.stringify(form),
++      const response = await apiFetch<{ success: true; message: string; purchaseNumber: string }>(
++        "/purchases",
++        {
++          method: "POST",
++          body: JSON.stringify({
++            supplierId: form.supplierId,
++            items: form.items.map(({ variantId, quantity, unitPurchaseCost }) => ({
++              variantId,
++              quantity,
++              unitPurchaseCost,
++            })),
++            transportCost: form.transportCost,
++            otherCost: form.otherCost,
++            receivedAt: form.receivedAt,
++            invoiceReference: form.invoiceReference,
++            notes: form.notes,
++          }),
++        },
++      );
++      setMessage(`${response.message} Reference: ${response.purchaseNumber}`);
++      setForm({
++        ...initialForm(),
++        supplierId: form.supplierId,
++        items: [newLine(variants[0])],
+       });
+-      setMessage(response.message);
+-      setForm((current) => ({ ...current, quantity: 10, transportCost: 0, otherCost: 0, invoiceReference: "", notes: "" }));
+       await load();
+-    } catch (requestError) { setError((requestError as Error).message); }
+-    finally { setSaving(false); }
++    } catch (requestError) {
++      setError((requestError as Error).message);
++    } finally {
++      setSaving(false);
++    }
+   }
+ 
+-  if (loading) return <LoadingScreen message="Loading purchase batches..." />;
++  if (loading) return <LoadingScreen message="Loading purchases..." />;
+ 
+   return (
+     <main className="page">
+-      <div className="page-header"><div><h1>Purchase Batches</h1><p className="muted">Receive manufacturer stock and calculate actual landed cost per shirt.</p></div><span className="badge">{purchases.length} BATCHES</span></div>
++      <div className="page-header">
++        <div>
++          <h1>Stock Purchases</h1>
++          <p className="muted">Record all sizes and colours bought from one supplier in a single purchase.</p>
++        </div>
++        <span className="badge">{purchaseGroups.length} PURCHASES</span>
++      </div>
++
+       {error ? <div className="error-box page-message">{error}</div> : null}
+       {message ? <div className="success-box page-message">{message}</div> : null}
+ 
+-      {!suppliers.length ? <div className="notice-box page-message">Add an active supplier before recording a purchase.</div> : null}
+-      {!variants.length ? <div className="notice-box page-message">Add an active garment variant before recording a purchase.</div> : null}
++      {!suppliers.length ? (
++        <div className="notice-box page-message">
++          Add an active supplier first. <Link className="inline-text-link" href="/suppliers">Manage suppliers</Link>
++        </div>
++      ) : null}
++      {!variants.length ? <div className="notice-box page-message">Add an active blank-shirt variant before recording a purchase.</div> : null}
+ 
+       <section className="split-layout">
+         <article className="card card-padding">
+-          <h2 className="section-title">Receive stock</h2>
+-          <p className="section-copy">Transport and other batch costs are distributed across all purchased units.</p>
++          <div className="section-heading-row">
++            <div>
++              <h2 className="section-title">Receive supplier purchase</h2>
++              <p className="section-copy">Example: 4 Black Large and 2 Black Medium can be entered together below.</p>
++            </div>
++            <Link className="button button-secondary compact-button" href="/suppliers">Suppliers</Link>
++          </div>
++
+           <form className="form" onSubmit={submit}>
+             <div className="two-column-form">
+-              <div className="field"><label htmlFor="purchaseSupplier">Supplier</label><select className="select" id="purchaseSupplier" required value={form.supplierId} onChange={(event) => setForm({ ...form, supplierId: event.target.value })}><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></div>
+-              <div className="field"><label htmlFor="purchaseVariant">Blank shirt variant</label><select className="select" id="purchaseVariant" required value={form.variantId} onChange={(event) => selectVariant(event.target.value)}><option value="">Select variant</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.sku} · {labelize(variant.garmentType)} · {variant.color} {variant.size}</option>)}</select></div>
+-              <div className="field"><label htmlFor="purchaseQty">Quantity</label><input className="input" id="purchaseQty" min="1" required type="number" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: Number(event.target.value) })} /></div>
+-              <div className="field"><label htmlFor="purchaseUnitCost">Per-shirt purchase cost</label><input className="input" id="purchaseUnitCost" min="0" required type="number" value={form.unitPurchaseCost} onChange={(event) => setForm({ ...form, unitPurchaseCost: Number(event.target.value) })} /></div>
+-              <div className="field"><label htmlFor="transportCost">Manufacturer transport</label><input className="input" id="transportCost" min="0" required type="number" value={form.transportCost} onChange={(event) => setForm({ ...form, transportCost: Number(event.target.value) })} /></div>
+-              <div className="field"><label htmlFor="otherCost">Other batch cost</label><input className="input" id="otherCost" min="0" required type="number" value={form.otherCost} onChange={(event) => setForm({ ...form, otherCost: Number(event.target.value) })} /></div>
+-              <div className="field"><label htmlFor="receivedAt">Received date</label><input className="input" id="receivedAt" required type="date" value={form.receivedAt} onChange={(event) => setForm({ ...form, receivedAt: event.target.value })} /></div>
+-              <div className="field"><label htmlFor="invoiceReference">Invoice/reference</label><input className="input" id="invoiceReference" value={form.invoiceReference} onChange={(event) => setForm({ ...form, invoiceReference: event.target.value })} /></div>
+-              <div className="field field-span-2"><label htmlFor="purchaseNotes">Notes</label><textarea className="input textarea" id="purchaseNotes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></div>
++              <div className="field">
++                <label htmlFor="purchaseSupplier">Supplier</label>
++                <select
++                  className="select"
++                  id="purchaseSupplier"
++                  required
++                  value={form.supplierId}
++                  onChange={(event) => setForm({ ...form, supplierId: event.target.value })}
++                >
++                  <option value="">Select supplier</option>
++                  {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
++                </select>
++              </div>
++              <div className="field">
++                <label htmlFor="receivedAt">Purchase/received date</label>
++                <input className="input" id="receivedAt" required type="date" value={form.receivedAt} onChange={(event) => setForm({ ...form, receivedAt: event.target.value })} />
++              </div>
++              <div className="field">
++                <label htmlFor="invoiceReference">Invoice/reference <span className="optional-label">(optional)</span></label>
++                <input className="input" id="invoiceReference" placeholder="Supplier invoice or your own note, e.g. AD-001" value={form.invoiceReference} onChange={(event) => setForm({ ...form, invoiceReference: event.target.value })} />
++                <small className="field-help">Leave blank when the supplier did not provide an invoice.</small>
++              </div>
++              <div className="field">
++                <label htmlFor="transportCost">Total transport cost</label>
++                <input className="input" id="transportCost" min="0" required type="number" value={form.transportCost} onChange={(event) => setForm({ ...form, transportCost: Number(event.target.value) })} />
++              </div>
++              <div className="field">
++                <label htmlFor="otherCost">Other shared purchase cost</label>
++                <input className="input" id="otherCost" min="0" required type="number" value={form.otherCost} onChange={(event) => setForm({ ...form, otherCost: Number(event.target.value) })} />
++              </div>
++              <div className="field">
++                <label htmlFor="purchaseNotes">Notes <span className="optional-label">(optional)</span></label>
++                <input className="input" id="purchaseNotes" placeholder="Any purchase note" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
++              </div>
++            </div>
++
++            <div className="purchase-items-section">
++              <div className="section-heading-row">
++                <div>
++                  <h3>Shirts in this purchase</h3>
++                  <p className="section-copy">Add one row for each size, colour or shirt type.</p>
++                </div>
++                <button className="button button-secondary compact-button" disabled={!variants.length} onClick={addLine} type="button">+ Add shirt</button>
++              </div>
++
++              <div className="purchase-item-list">
++                {form.items.map((item, index) => {
++                  const usedIds = new Set(form.items.filter((line) => line.key !== item.key).map((line) => line.variantId));
++                  const lineSharedCost = totals.totalQuantity > 0
++                    ? totals.sharedCostPerShirt * item.quantity
++                    : 0;
++                  const lineTotal = item.quantity * item.unitPurchaseCost + lineSharedCost;
++                  const landedUnitCost = item.quantity > 0 ? lineTotal / item.quantity : 0;
++
++                  return (
++                    <div className="purchase-item-row" key={item.key}>
++                      <div className="purchase-line-number">{index + 1}</div>
++                      <div className="field purchase-variant-field">
++                        <label htmlFor={`purchaseVariant-${item.key}`}>Blank shirt</label>
++                        <select
++                          className="select"
++                          id={`purchaseVariant-${item.key}`}
++                          required
++                          value={item.variantId}
++                          onChange={(event) => selectVariant(item.key, event.target.value)}
++                        >
++                          <option value="">Select variant</option>
++                          {variants
++                            .filter((variant) => variant.id === item.variantId || !usedIds.has(variant.id))
++                            .map((variant) => (
++                              <option key={variant.id} value={variant.id}>
++                                {variant.sku} · {labelize(variant.garmentType)} · {variant.color} {variant.size}
++                              </option>
++                            ))}
++                        </select>
++                      </div>
++                      <div className="field">
++                        <label htmlFor={`purchaseQty-${item.key}`}>Quantity</label>
++                        <input className="input" id={`purchaseQty-${item.key}`} min="1" required type="number" value={item.quantity} onChange={(event) => updateLine(item.key, { quantity: Number(event.target.value) })} />
++                      </div>
++                      <div className="field">
++                        <label htmlFor={`purchaseUnitCost-${item.key}`}>Cost per shirt</label>
++                        <input className="input" id={`purchaseUnitCost-${item.key}`} min="0" required type="number" value={item.unitPurchaseCost} onChange={(event) => updateLine(item.key, { unitPurchaseCost: Number(event.target.value) })} />
++                      </div>
++                      <div className="purchase-line-total">
++                        <span>Estimated landed/unit</span>
++                        <strong>{formatCurrency(landedUnitCost)}</strong>
++                      </div>
++                      <button
++                        aria-label={`Remove shirt row ${index + 1}`}
++                        className="remove-line-button"
++                        disabled={form.items.length === 1}
++                        onClick={() => removeLine(item.key)}
++                        type="button"
++                      >
++                        Remove
++                      </button>
++                    </div>
++                  );
++                })}
++              </div>
++            </div>
++
++            <div className="actions-row">
++              <button className="button" disabled={saving || !suppliers.length || !variants.length} type="submit">
++                {saving ? "Receiving..." : `Receive ${totals.totalQuantity || 0} shirts`}
++              </button>
+             </div>
+-            <div className="actions-row"><button className="button" disabled={saving || !suppliers.length || !variants.length} type="submit">{saving ? "Receiving..." : "Receive purchase batch"}</button></div>
+           </form>
+         </article>
+ 
+         <aside className="card card-padding calculation-card">
+-          <h2 className="section-title">Live landed-cost calculation</h2>
++          <h2 className="section-title">Purchase summary</h2>
+           <div className="calculation-list">
+-            <div><span>Shirt cost</span><strong>{formatCurrency(form.quantity * form.unitPurchaseCost)}</strong></div>
++            <div><span>Different shirt variants</span><strong>{form.items.length}</strong></div>
++            <div><span>Total shirts</span><strong>{totals.totalQuantity}</strong></div>
++            <div><span>Blank-shirt cost</span><strong>{formatCurrency(totals.shirtCost)}</strong></div>
+             <div><span>Transport</span><strong>{formatCurrency(form.transportCost)}</strong></div>
+             <div><span>Other cost</span><strong>{formatCurrency(form.otherCost)}</strong></div>
+-            <div className="calculation-total"><span>Total batch cost</span><strong>{formatCurrency(totals.totalCost)}</strong></div>
+-            <div className="landed-highlight"><span>Landed cost per shirt</span><strong>{formatCurrency(totals.landedCost)}</strong></div>
++            <div className="calculation-total"><span>Total purchase cost</span><strong>{formatCurrency(totals.totalCost)}</strong></div>
++            <div className="landed-highlight"><span>Shared cost per shirt</span><strong>{formatCurrency(totals.sharedCostPerShirt)}</strong></div>
+           </div>
+-          <p className="section-copy top-gap">Formula: (quantity × purchase cost + transport + other cost) ÷ quantity.</p>
++          <p className="section-copy top-gap">Transport and other shared costs are distributed by quantity across all shirts in this purchase.</p>
+         </aside>
+       </section>
+ 
+-      <section className="card users-table-card"><div className="table-wrap"><table className="table"><thead><tr><th>Batch</th><th>Supplier</th><th>Variant</th><th>Qty</th><th>Base Cost</th><th>Batch Charges</th><th>Landed / Unit</th><th>Total</th><th>Received</th></tr></thead><tbody>
+-        {purchases.map((purchase) => <tr key={purchase.id}><td className="code-text"><strong>{purchase.batchNumber}</strong><div className="table-subtext">{purchase.invoiceReference || "No invoice ref"}</div></td><td>{purchase.supplier.name}</td><td><strong>{purchase.variant.sku}</strong><div className="table-subtext">{purchase.variant.color} · {purchase.variant.size}</div></td><td>{purchase.quantity}<div className="table-subtext">Remaining: {purchase.remainingQty}</div></td><td>{formatCurrency(purchase.unitPurchaseCost)}</td><td>{formatCurrency(purchase.transportCost + purchase.otherCost)}<div className="table-subtext">Transport {formatCurrency(purchase.transportCost)}</div></td><td><strong>{formatCurrency(purchase.landedUnitCost)}</strong></td><td>{formatCurrency(purchase.totalCost)}</td><td>{formatDate(purchase.receivedAt)}</td></tr>)}
+-        {!purchases.length ? <tr><td className="empty-state" colSpan={9}>No purchase batches recorded yet.</td></tr> : null}
+-      </tbody></table></div></section>
++      <section className="card users-table-card">
++        <div className="table-wrap">
++          <table className="table purchase-history-table">
++            <thead>
++              <tr>
++                <th>Purchase</th>
++                <th>Supplier</th>
++                <th>Shirts</th>
++                <th>Total Qty</th>
++                <th>Shared Charges</th>
++                <th>Total</th>
++                <th>Received</th>
++              </tr>
++            </thead>
++            <tbody>
++              {purchaseGroups.map((group) => (
++                <tr key={group.purchaseNumber}>
++                  <td className="code-text">
++                    <strong>{group.purchaseNumber}</strong>
++                    <div className="table-subtext">{group.invoiceReference || "No invoice/reference"}</div>
++                  </td>
++                  <td>{group.supplier.name}</td>
++                  <td>
++                    <div className="purchase-history-items">
++                      {group.items.map((purchase) => (
++                        <div key={purchase.id}>
++                          <strong>{purchase.variant.sku}</strong> × {purchase.quantity}
++                          <span>{purchase.variant.color} {purchase.variant.size} · Base {formatCurrency(purchase.unitPurchaseCost)} · Landed {formatCurrency(purchase.landedUnitCost)}</span>
++                        </div>
++                      ))}
++                    </div>
++                  </td>
++                  <td><strong>{group.totalUnits}</strong></td>
++                  <td>
++                    {formatCurrency(group.transportCost + group.otherCost)}
++                    <div className="table-subtext">Transport {formatCurrency(group.transportCost)}</div>
++                  </td>
++                  <td><strong>{formatCurrency(group.totalCost)}</strong></td>
++                  <td>{formatDate(group.receivedAt)}</td>
++                </tr>
++              ))}
++              {!purchaseGroups.length ? <tr><td className="empty-state" colSpan={7}>No stock purchases recorded yet.</td></tr> : null}
++            </tbody>
++          </table>
++        </div>
++      </section>
+     </main>
+   );
+ }
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 49e146e..521fa1c 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -177,3 +177,46 @@ details summary { cursor: pointer; }
+   .inline-filter { width: 100%; }
+   .inline-filter .input, .inline-filter .button { width: 100%; }
+ }
++
++/* ERP Lite navigation and multi-item purchases */
++.sidebar-advanced { margin-top: 8px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 10px; }
++.sidebar-advanced summary { padding: 10px 14px; border-radius: 10px; color: #9ba1aa; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
++.sidebar-advanced summary:hover { color: white; background: rgba(255,255,255,.05); }
++.sidebar-advanced-links { display: grid; gap: 4px; margin-top: 4px; }
++.nav-link-secondary { padding-left: 22px; font-size: 13px; font-weight: 600; }
++.inline-text-link { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
++.compact-button { display: inline-flex; align-items: center; justify-content: center; width: auto; padding: 10px 13px; white-space: nowrap; }
++.section-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
++.optional-label { color: var(--muted); font-weight: 500; }
++.field-help { margin-top: -2px; color: var(--muted); font-size: 11px; line-height: 1.45; }
++.purchase-items-section { margin-top: 8px; padding-top: 24px; border-top: 1px solid var(--line); }
++.purchase-items-section h3 { margin: 0 0 6px; }
++.purchase-item-list { display: grid; gap: 12px; }
++.purchase-item-row { display: grid; grid-template-columns: 34px minmax(230px, 1.5fr) minmax(95px, .45fr) minmax(130px, .55fr) minmax(145px, .55fr) auto; gap: 12px; align-items: end; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fafafa; }
++.purchase-line-number { align-self: center; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: white; font-size: 12px; font-weight: 900; }
++.purchase-line-total { display: grid; gap: 6px; align-self: center; }
++.purchase-line-total span { color: var(--muted); font-size: 11px; }
++.purchase-line-total strong { font-size: 15px; }
++.remove-line-button { align-self: center; border: 0; background: transparent; color: var(--danger); padding: 8px 0; font-size: 12px; font-weight: 800; }
++.remove-line-button:disabled { color: #b8bdc5; cursor: not-allowed; }
++.purchase-history-table { min-width: 1050px; }
++.purchase-history-items { display: grid; gap: 10px; min-width: 310px; }
++.purchase-history-items > div { padding-bottom: 9px; border-bottom: 1px solid var(--line); }
++.purchase-history-items > div:last-child { padding-bottom: 0; border-bottom: 0; }
++.purchase-history-items strong, .purchase-history-items span { display: block; }
++.purchase-history-items span { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; }
++
++@media (max-width: 1250px) {
++  .purchase-item-row { grid-template-columns: 34px minmax(220px, 1fr) repeat(2, minmax(120px, .5fr)); }
++  .purchase-line-total { grid-column: 2 / span 2; }
++  .remove-line-button { grid-column: 4; justify-self: end; }
++}
++
++@media (max-width: 760px) {
++  .section-heading-row { flex-direction: column; }
++  .section-heading-row .compact-button { width: 100%; }
++  .purchase-item-row { grid-template-columns: 30px 1fr; }
++  .purchase-variant-field, .purchase-line-total { grid-column: 1 / -1; }
++  .purchase-item-row > .field:not(.purchase-variant-field) { grid-column: 2; }
++  .remove-line-button { grid-column: 2; justify-self: start; }
++}
+diff --git a/src/components/dashboard/sidebar.tsx b/src/components/dashboard/sidebar.tsx
+index e0ab673..8b5c8df 100644
+--- a/src/components/dashboard/sidebar.tsx
++++ b/src/components/dashboard/sidebar.tsx
+@@ -4,34 +4,80 @@ import Link from "next/link";
+ import { usePathname } from "next/navigation";
+ import type { UserRole } from "@/types";
+ 
+-const links = [
+-  { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/orders", label: "Orders", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/printing", label: "Printing Jobs", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/courier", label: "Courier & COD", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/returns", label: "Returns & RTO", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/products", label: "Product Designs", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/inventory", label: "Blank Inventory", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/purchases", label: "Purchase Batches", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/inventory/movements", label: "Stock Movements", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/suppliers", label: "Suppliers", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/expenses", label: "Expenses", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/ads", label: "Ad Campaigns", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/partners", label: "Partners & Wallets", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/reports", label: "Reports", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/settings", label: "Business Settings", roles: ["ADMIN", "PARTNER"] as UserRole[] },
+-  { href: "/users", label: "Users & Roles", roles: ["ADMIN"] as UserRole[] },
+-  { href: "/audit-log", label: "Audit Log", roles: ["ADMIN"] as UserRole[] },
++type NavigationLink = {
++  href: string;
++  label: string;
++  roles: UserRole[];
++};
++
++const mainLinks: NavigationLink[] = [
++  { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "PARTNER"] },
++  { href: "/orders", label: "Orders", roles: ["ADMIN", "PARTNER"] },
++  { href: "/products", label: "Products", roles: ["ADMIN", "PARTNER"] },
++  { href: "/purchases", label: "Stock Purchases", roles: ["ADMIN", "PARTNER"] },
++  { href: "/inventory", label: "Current Stock", roles: ["ADMIN", "PARTNER"] },
++  { href: "/expenses", label: "Expenses", roles: ["ADMIN", "PARTNER"] },
++  { href: "/partners", label: "Partners", roles: ["ADMIN", "PARTNER"] },
++  { href: "/reports", label: "Reports", roles: ["ADMIN", "PARTNER"] },
++  { href: "/settings", label: "Settings", roles: ["ADMIN", "PARTNER"] },
++  { href: "/users", label: "Users", roles: ["ADMIN"] },
++];
++
++const advancedLinks: NavigationLink[] = [
++  { href: "/printing", label: "Printing Jobs", roles: ["ADMIN", "PARTNER"] },
++  { href: "/courier", label: "Courier & COD", roles: ["ADMIN", "PARTNER"] },
++  { href: "/returns", label: "Returns & RTO", roles: ["ADMIN", "PARTNER"] },
++  { href: "/suppliers", label: "Suppliers", roles: ["ADMIN", "PARTNER"] },
++  { href: "/inventory/movements", label: "Stock Movements", roles: ["ADMIN", "PARTNER"] },
++  { href: "/ads", label: "Ad Campaigns", roles: ["ADMIN", "PARTNER"] },
++  { href: "/audit-log", label: "Audit Log", roles: ["ADMIN"] },
+ ];
+ 
++function isLinkActive(pathname: string, href: string): boolean {
++  return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
++}
++
+ export default function Sidebar({ role }: { role: UserRole }) {
+   const pathname = usePathname();
+-  return <aside className="sidebar">
+-    <div className="sidebar-brand"><strong>APNA WEAR</strong><span>COMPLETE ERP</span></div>
+-    <nav className="nav-list">{links.filter((link) => link.roles.includes(role)).map((link) => {
+-      const active = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(`${link.href}/`));
+-      return <Link className={`nav-link ${active ? "nav-link-active" : ""}`} href={link.href} key={link.href}>{link.label}</Link>;
+-    })}</nav>
+-    <div className="sidebar-footer">Order-to-cash, inventory, partner ledger and reports are active.</div>
+-  </aside>;
++  const visibleMainLinks = mainLinks.filter((link) => link.roles.includes(role));
++  const visibleAdvancedLinks = advancedLinks.filter((link) => link.roles.includes(role));
++  const advancedActive = visibleAdvancedLinks.some((link) => isLinkActive(pathname, link.href));
++
++  return (
++    <aside className="sidebar">
++      <div className="sidebar-brand">
++        <strong>APNA WEAR</strong>
++        <span>ERP LITE</span>
++      </div>
++
++      <nav className="nav-list" aria-label="Main navigation">
++        {visibleMainLinks.map((link) => (
++          <Link
++            className={`nav-link ${isLinkActive(pathname, link.href) ? "nav-link-active" : ""}`}
++            href={link.href}
++            key={link.href}
++          >
++            {link.label}
++          </Link>
++        ))}
++
++        <details className="sidebar-advanced" defaultOpen={advancedActive} key={pathname}>
++          <summary>Advanced tools</summary>
++          <div className="sidebar-advanced-links">
++            {visibleAdvancedLinks.map((link) => (
++              <Link
++                className={`nav-link nav-link-secondary ${isLinkActive(pathname, link.href) ? "nav-link-active" : ""}`}
++                href={link.href}
++                key={link.href}
++              >
++                {link.label}
++              </Link>
++            ))}
++          </div>
++        </details>
++      </nav>
++
++      <div className="sidebar-footer">Daily work: purchase stock, add orders, update delivery, and review profit.</div>
++    </aside>
++  );
+ }
+diff --git a/src/types/index.ts b/src/types/index.ts
+index 56727fa..b0bb65d 100644
+--- a/src/types/index.ts
++++ b/src/types/index.ts
+@@ -104,6 +104,7 @@ export type InventorySummary = {
+ 
+ export type PurchaseBatch = {
+   id: string;
++  purchaseNumber: string;
+   batchNumber: string;
+   supplier: { id: string | null; name: string; phone: string };
+   variant: {
