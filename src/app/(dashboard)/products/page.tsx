@@ -104,7 +104,7 @@ export default function ProductsPage() {
       <div className="page-header">
         <div>
           <h1>Product Designs</h1>
-          <p className="muted">Printed design catalog. Blank-shirt stock is managed separately.</p>
+          <p className="muted">Create each print design once, then reuse it in as many customer orders as needed.</p>
         </div>
         <span className="badge">{products.length} DESIGNS</span>
       </div>
@@ -114,7 +114,7 @@ export default function ProductsPage() {
 
       <section className="card card-padding">
         <h2 className="section-title">{editingId ? "Edit design" : "Add a design"}</h2>
-        <p className="section-copy">Set separate selling prices for Regular and Drop Shoulder tees.</p>
+        <p className="section-copy">These are customer prices for the complete printed shirt—not the printing vendor cost. Printing cost is entered on the order.</p>
         <form className="form" onSubmit={submit}>
           <div className="form-grid-3">
             <div className="field">
@@ -133,11 +133,11 @@ export default function ProductsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="regularPrice">Regular selling price</label>
+              <label htmlFor="regularPrice">Complete Regular printed shirt price</label>
               <input className="input" id="regularPrice" min="0" required type="number" value={form.regularSellingPrice} onChange={(event) => setForm({ ...form, regularSellingPrice: Number(event.target.value) })} />
             </div>
             <div className="field">
-              <label htmlFor="dropPrice">Drop Shoulder selling price</label>
+              <label htmlFor="dropPrice">Complete Drop Shoulder printed shirt price</label>
               <input className="input" id="dropPrice" min="0" required type="number" value={form.dropShoulderSellingPrice} onChange={(event) => setForm({ ...form, dropShoulderSellingPrice: Number(event.target.value) })} />
             </div>
             <div className="field field-span-3">
@@ -155,7 +155,7 @@ export default function ProductsPage() {
       <section className="card users-table-card">
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Design</th><th>Regular</th><th>Drop Shoulder</th><th>Status</th><th>Updated</th><th>Action</th></tr></thead>
+            <thead><tr><th>Reusable Design</th><th>Regular Customer Price</th><th>Drop Shoulder Customer Price</th><th>Status</th><th>Updated</th><th>Action</th></tr></thead>
             <tbody>
               {products.map((product) => (
                 <tr key={product.id}>

@@ -104,6 +104,7 @@ export type InventorySummary = {
 
 export type PurchaseBatch = {
   id: string;
+  purchaseNumber: string;
   batchNumber: string;
   supplier: { id: string | null; name: string; phone: string };
   variant: {
