@@ -61,7 +61,7 @@ export default function Sidebar({ role }: { role: UserRole }) {
           </Link>
         ))}
 
-        <details className="sidebar-advanced" defaultOpen={advancedActive} key={pathname}>
+        <details className="sidebar-advanced" open={advancedActive} key={pathname}>
           <summary>Advanced tools</summary>
           <div className="sidebar-advanced-links">
             {visibleAdvancedLinks.map((link) => (
