@@ -35,7 +35,16 @@ export default function PrintingPage() {
   async function submit(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError(""); setMessage("");
     try {
-      const result = await apiFetch<{ success: true; message: string }>("/printing-jobs", { method: "POST", body: JSON.stringify({ ...form, sentAt: form.sentAt || undefined, dueAt: form.dueAt || undefined }) });
+      const result = await apiFetch<{ success: true; message: string }>("/printing-jobs", {
+        method: "POST",
+        body: JSON.stringify({
+          ...form,
+          printingCost: Number(form.printingCost) || 0,
+          pickupCost: Number(form.pickupCost) || 0,
+          sentAt: form.sentAt || undefined,
+          dueAt: form.dueAt || undefined,
+        }),
+      });
       setMessage(result.message); setForm(initialForm); await load();
     } catch (requestError) { setError((requestError as Error).message); }
     finally { setSaving(false); }
@@ -53,8 +62,8 @@ export default function PrintingPage() {
     <section className="card card-padding"><h2 className="section-title">Create printing job</h2><form className="form" onSubmit={submit}><div className="form-grid-3">
       <div className="field"><label>Order</label><select className="select" required value={form.orderId} onChange={(e) => setForm({ ...form, orderId: e.target.value })}><option value="">Select order</option>{orders.map((order) => <option key={order.id} value={order.id}>{order.orderNumber} · {order.customer.name}</option>)}</select></div>
       <div className="field"><label>Printer / vendor</label><input className="input" required value={form.printerName} onChange={(e) => setForm({ ...form, printerName: e.target.value })} /></div>
-      <div className="field"><label>Printing cost</label><input className="input" min="0" type="number" value={form.printingCost} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} /></div>
-      <div className="field"><label>Pickup cost</label><input className="input" min="0" type="number" value={form.pickupCost} onChange={(e) => setForm({ ...form, pickupCost: Number(e.target.value) })} /></div>
+      <div className="field"><label>Printing cost</label><input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} /></div>
+      <div className="field"><label>Pickup cost</label><input className="input" min="0" type="number" value={form.pickupCost || ""} onChange={(e) => setForm({ ...form, pickupCost: Number(e.target.value) })} /></div>
       <div className="field"><label>Sent date</label><input className="input" type="date" value={form.sentAt} onChange={(e) => setForm({ ...form, sentAt: e.target.value })} /></div>
       <div className="field"><label>Due date</label><input className="input" type="date" value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} /></div>
       <div className="field field-span-3"><label>Notes</label><textarea className="input textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
