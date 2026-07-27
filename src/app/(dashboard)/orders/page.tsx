@@ -242,6 +242,12 @@ export default function OrdersPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
 
+    const requestedQty = Number(form.quantity) || 1;
+    if (!selectedVariant || selectedVariant.availableQty < requestedQty) {
+      setError(`Cannot create order: Blank shirt SKU ${selectedVariant?.sku || 'selected'} is OUT OF STOCK (${selectedVariant?.availableQty ?? 0} available, ${requestedQty} requested). Please receive stock in Purchases before creating orders.`);
+      return;
+    }
+
     if (!form.printingCost || Number(form.printingCost) <= 0) {
       setError("Printing Cost Total is required! Please enter the printing cost (e.g. 370 or 400) before creating the order.");
       return;
@@ -466,8 +472,19 @@ export default function OrdersPage() {
               </div>
             </div>
             <div className="actions-row">
-              <button className="button" disabled={saving || !variants.length}>
-                {saving ? "Creating..." : "Create order"}
+              <button
+                className="button"
+                disabled={saving || !variants.length || (selectedVariant ? selectedVariant.availableQty < (Number(form.quantity) || 1) : false)}
+                style={{
+                  backgroundColor: selectedVariant && selectedVariant.availableQty < (Number(form.quantity) || 1) ? "#ef4444" : undefined,
+                  borderColor: selectedVariant && selectedVariant.availableQty < (Number(form.quantity) || 1) ? "#ef4444" : undefined,
+                }}
+              >
+                {saving
+                  ? "Creating..."
+                  : selectedVariant && selectedVariant.availableQty < (Number(form.quantity) || 1)
+                  ? "⛔ Out of Stock (Disabled)"
+                  : "Create order"}
               </button>
             </div>
           </form>
@@ -485,7 +502,13 @@ export default function OrdersPage() {
             </div>
             <div>
               <span>Available stock</span>
-              <strong>{selectedVariant?.availableQty ?? 0}</strong>
+              {selectedVariant && selectedVariant.availableQty < (Number(form.quantity) || 1) ? (
+                <strong className="negative-text" style={{ fontWeight: "700" }}>
+                  {selectedVariant.availableQty} ❌ OUT OF STOCK
+                </strong>
+              ) : (
+                <strong>{selectedVariant?.availableQty ?? 0} available</strong>
+              )}
             </div>
             <div>
               <span>Blank shirt cost</span>
