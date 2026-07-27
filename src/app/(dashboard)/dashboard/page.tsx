@@ -149,6 +149,19 @@ export default function DashboardPage() {
               <strong>{formatCurrency(summary?.partnerSummary.totalFunding ?? 0)}</strong>
             </div>
           </div>
+
+          <h2 className="section-title top-gap">📲 Cash & Wallet Balances</h2>
+          <div className="kpi-list">
+            {summary?.cashBalances.map((item) => (
+              <div className="kpi-row" key={item.account}>
+                <span>{labelize(item.account)}</span>
+                <strong className={item.balance >= 0 ? "positive-text" : "negative-text"}>
+                  {formatCurrency(item.balance)}
+                </strong>
+              </div>
+            ))}
+          </div>
+
           <h2 className="section-title top-gap">Low stock</h2>
           {summary?.lowStockVariants.map((item) => (
             <div className="kpi-row" key={item.id}>
