@@ -66,8 +66,9 @@ export default function OrdersPage() {
         apiFetch<{ success: true; jobs: any[] }>("/printing-jobs").catch(() => ({ success: true, jobs: [] })),
       ]);
 
-      const latestJobCost = jobData?.jobs?.[0]?.printingCost;
-      const defaultPrinting = latestJobCost || settingsData?.settings?.defaultCosts?.defaultPrintingCost || 400;
+      const firstJob = jobData?.jobs?.[0];
+      const latestJobCost = firstJob ? ((firstJob.printingCost || 0) + (firstJob.pickupCost || 0)) : null;
+      const defaultPrinting = latestJobCost && latestJobCost > 0 ? latestJobCost : (settingsData?.settings?.defaultCosts?.defaultPrintingCost || 450);
       const defaultPickup = settingsData?.settings?.defaultCosts?.printingPickup ?? 50;
 
       setOrders(orderData.orders);
@@ -76,7 +77,7 @@ export default function OrdersPage() {
       setCampaigns(campaignData.campaigns);
       setForm((current) => ({
         ...current,
-        printingCost: current.printingCost || String(defaultPrinting),
+        printingCost: current.printingCost !== "" ? current.printingCost : String(defaultPrinting),
         perShirtPrintingCost: defaultPrinting,
         printingPickup: defaultPickup,
       }));
