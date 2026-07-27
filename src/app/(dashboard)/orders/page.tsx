@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import LoadingScreen from "@/components/common/loading-screen";
 import { apiFetch } from "@/lib/api";
-import { formatCurrency, formatDate, labelize } from "@/lib/format";
+import { formatCurrency, labelize } from "@/lib/format";
 import type { AdCampaign, GarmentVariant, Order, ProductDesign } from "@/types";
 
 const todayDefaults = {
