@@ -20,7 +20,7 @@ const todayDefaults = {
   garmentVariantId: "",
   quantity: 1,
   unitSellingPrice: 1300,
-  printingCost: 400,
+  printingCost: "",
   perShirtPrintingCost: 400,
   deliveryCharged: 300,
   discount: 0,
@@ -79,7 +79,7 @@ export default function OrdersPage() {
           unitSellingPrice: price ?? current.unitSellingPrice,
           deliveryCharged: defaultCourier,
           perShirtPrintingCost: defaultPrinting,
-          printingCost: (current.quantity || 1) * defaultPrinting,
+          printingCost: current.printingCost,
         };
       });
     } catch (requestError) {
@@ -100,7 +100,7 @@ export default function OrdersPage() {
     const qty = Number(form.quantity) || 1;
     const revenue = (Number(form.unitSellingPrice) || 0) * qty + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0);
     const stockCost = (selectedVariant?.effectiveUnitCost ?? 400) * qty;
-    const printCost = Number(form.printingCost) || qty * (form.perShirtPrintingCost || 400);
+    const printCost = Number(form.printingCost) || 0;
     const courierCost = 300;
     const flyerCost = 20;
     const totalCosts = stockCost + printCost + courierCost + flyerCost;
@@ -121,7 +121,6 @@ export default function OrdersPage() {
     setForm((current) => ({
       ...current,
       quantity: qty,
-      printingCost: qty * (current.perShirtPrintingCost || 400),
     }));
   }
 
@@ -154,12 +153,11 @@ export default function OrdersPage() {
         garmentVariantId: matchingVariant?.id || current.garmentVariantId,
         quantity: parsedQty,
         unitSellingPrice: parsedPrice,
-        printingCost: parsedQty * (current.perShirtPrintingCost || 400),
         advancePayment: p.advancePayment ?? current.advancePayment,
         advanceAccount: "EASYPAISA",
         deliveryCharged: deliveryFee,
       }));
-      setMessage("📋 Chat message parsed & custom design form auto-filled successfully!");
+      setMessage("📋 Chat message parsed & form auto-filled! Please enter Printing Cost Total to complete order.");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -219,6 +217,12 @@ export default function OrdersPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+
+    if (!form.printingCost || Number(form.printingCost) <= 0) {
+      setError("Printing Cost Total is required! Please enter the printing cost (e.g. 370 or 400) before creating the order.");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setMessage("");
@@ -379,8 +383,17 @@ export default function OrdersPage() {
                 <input className="input" placeholder="e.g. 1300 (Tee Price from customer message)" min="0" type="number" value={form.unitSellingPrice || ""} onChange={(e) => setForm({ ...form, unitSellingPrice: Number(e.target.value) })} />
               </div>
               <div className="field">
-                <label>Printing Cost Total (Rs.) ✏️</label>
-                <input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} />
+                <label style={{ color: "#dc2626", fontWeight: "700" }}>Printing Cost Total (Rs.) * REQUIRED</label>
+                <input
+                  className="input"
+                  placeholder="Enter printing cost (e.g. 370 or 400)"
+                  min="1"
+                  required
+                  type="number"
+                  value={form.printingCost}
+                  onChange={(e) => setForm({ ...form, printingCost: e.target.value })}
+                  style={{ borderColor: !form.printingCost ? "#f87171" : undefined }}
+                />
               </div>
               <div className="field">
                 <label>Delivery Charged (Fixed Rs. 300)</label>
@@ -448,7 +461,7 @@ export default function OrdersPage() {
             </div>
             <div>
               <span>Printing cost</span>
-              <strong>{formatCurrency(projected.printCost)}</strong>
+              <strong>{projected.printCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
             </div>
             <div>
               <span>Delivery cost</span>
