@@ -77,7 +77,6 @@ export default function OrdersPage() {
       setCampaigns(campaignData.campaigns);
       setForm((current) => ({
         ...current,
-        printingCost: current.printingCost !== "" ? current.printingCost : String(defaultPrinting),
         perShirtPrintingCost: defaultPrinting,
         printingPickup: defaultPickup,
       }));
@@ -98,14 +97,14 @@ export default function OrdersPage() {
   const projected = useMemo(() => {
     const qty = Number(form.quantity) || 1;
     const revenue = (Number(form.unitSellingPrice) || 0) * qty + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0);
-    const stockCost = (selectedVariant?.effectiveUnitCost ?? 400) * qty;
-    const printCost = Number(form.printingCost) || 0;
+    const stockCost = (selectedVariant?.effectiveUnitCost ?? 560) * qty;
+    const printCost = form.printingCost !== "" ? Number(form.printingCost) : 0;
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayOrdersCount = orders.filter((o) => o.createdAt && o.createdAt.slice(0, 10) === todayStr).length + 1;
     const pickupCost = Math.round((50 / Math.max(1, todayOrdersCount)) * 100) / 100;
     const courierCost = 300;
     const flyerCost = 20;
-    const totalCosts = stockCost + printCost + courierCost + flyerCost;
+    const totalCosts = stockCost + printCost + pickupCost + courierCost + flyerCost;
     const netProfit = revenue - totalCosts;
     return {
       revenue,
@@ -555,6 +554,13 @@ export default function OrdersPage() {
               <div>
                 <span>• Printing Cost</span>
                 <strong>{form.printingCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
+              </div>
+              <div>
+                <span>• Pickup Fee (Auto-split ⚡)</span>
+                <strong>
+                  {formatCurrency(projected.pickupCost)}{" "}
+                  <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small>
+                </strong>
               </div>
               <div>
                 <span>• Courier Delivery Expense</span>
