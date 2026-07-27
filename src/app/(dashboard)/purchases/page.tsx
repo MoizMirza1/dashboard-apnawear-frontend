@@ -285,12 +285,12 @@ export default function PurchasesPage() {
                 <small className="field-help">Leave blank when the supplier did not provide an invoice.</small>
               </div>
               <div className="field">
-                <label htmlFor="transportCost">Total transport cost</label>
-                <input className="input" id="transportCost" min="0" required type="number" value={form.transportCost || ""} onChange={(event) => setForm({ ...form, transportCost: Number(event.target.value) })} />
+                <label htmlFor="transportCost">Total transport cost (PKR)</label>
+                <input className="input" id="transportCost" min="0" type="number" value={form.transportCost} onChange={(event) => setForm({ ...form, transportCost: Number(event.target.value) })} />
               </div>
               <div className="field">
-                <label htmlFor="otherCost">Other shared purchase cost</label>
-                <input className="input" id="otherCost" min="0" required type="number" value={form.otherCost || ""} onChange={(event) => setForm({ ...form, otherCost: Number(event.target.value) })} />
+                <label htmlFor="otherCost">Other shared purchase cost (PKR)</label>
+                <input className="input" id="otherCost" min="0" type="number" value={form.otherCost} onChange={(event) => setForm({ ...form, otherCost: Number(event.target.value) })} />
               </div>
               <div className="field">
                 <label htmlFor="purchaseNotes">Notes <span className="optional-label">(optional)</span></label>
