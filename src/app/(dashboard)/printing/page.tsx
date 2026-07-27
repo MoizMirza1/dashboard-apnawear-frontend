@@ -145,6 +145,39 @@ export default function PrintingPage() {
       {error ? <div className="error-box page-message">{error}</div> : null}
       {message ? <div className="success-box page-message">{message}</div> : null}
 
+      {/* 🖨️ FULL WIDTH CREATE INDIVIDUAL PRINTING JOB CARD */}
+      <article className="card card-padding" style={{ marginBottom: "20px" }}>
+        <h2 className="section-title">🖨️ Create Individual Printing Job</h2>
+        <form className="form" onSubmit={submitJob}>
+          <div className="form-grid-3">
+            <div className="field">
+              <label>Order</label>
+              <select className="select" required value={form.orderId} onChange={(e) => setForm({ ...form, orderId: e.target.value })}>
+                <option value="">Select order</option>
+                {allOrders.map((order) => (
+                  <option key={order.id} value={order.id}>
+                    {order.orderNumber} · {order.customer.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Printer / Vendor</label>
+              <input className="input" required value={form.printerName} onChange={(e) => setForm({ ...form, printerName: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>Printing Cost Total (Rs.)</label>
+              <input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} />
+            </div>
+          </div>
+          <div className="actions-row" style={{ marginTop: "12px" }}>
+            <button className="button" disabled={saving || !allOrders.length}>
+              {saving ? "Creating..." : "Create Job"}
+            </button>
+          </div>
+        </form>
+      </article>
+
       {/* 🛵 SINGLE-BUTTON 50 RS PICKUP TRIP ALLOCATOR */}
       <section className="card card-padding" style={{ marginBottom: "20px", borderLeft: "4px solid #f97316", backgroundColor: "rgba(249, 115, 22, 0.03)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
@@ -191,89 +224,8 @@ export default function PrintingPage() {
         </div>
       </section>
 
-      <div className="split-layout">
-        {/* 🖨️ PRINT JOB FORM CARD */}
-        <article className="card card-padding" style={{ flex: 1 }}>
-          <h2 className="section-title">🖨️ Create Individual Printing Job</h2>
-          <form className="form" onSubmit={submitJob}>
-            <div className="field">
-              <label>Order</label>
-              <select className="select" required value={form.orderId} onChange={(e) => setForm({ ...form, orderId: e.target.value })}>
-                <option value="">Select order</option>
-                {allOrders.map((order) => (
-                  <option key={order.id} value={order.id}>
-                    {order.orderNumber} · {order.customer.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="two-column-form">
-              <div className="field">
-                <label>Printer / Vendor</label>
-                <input className="input" required value={form.printerName} onChange={(e) => setForm({ ...form, printerName: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Printing Cost Total (Rs.)</label>
-                <input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} />
-              </div>
-            </div>
-            <div className="actions-row">
-              <button className="button" disabled={saving || !allOrders.length}>
-                {saving ? "Creating..." : "Create Job"}
-              </button>
-            </div>
-          </form>
-        </article>
-      </div>
-
-      {/* 🛵 MARKET TRIPS HISTORY TABLE */}
-      <section className="card users-table-card top-gap">
-        <div className="card-padding">
-          <h2 className="section-title">🛵 Logged 50 RS Pickup Trips</h2>
-        </div>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Trip #</th>
-                <th>Date</th>
-                <th>Trip Expense</th>
-                <th>Orders Count</th>
-                <th>Value Added Per Order</th>
-                <th>Orders Included</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trips.map((trip) => (
-                <tr key={trip.id}>
-                  <td className="code-text">{trip.tripNumber}</td>
-                  <td>{formatDate(trip.tripDate)}</td>
-                  <td className="negative-text">
-                    <strong>{formatCurrency(trip.totalTripCost)}</strong>
-                  </td>
-                  <td>
-                    <span className="badge">{trip.orders.length} orders</span>
-                  </td>
-                  <td className="positive-text">
-                    <strong>{formatCurrency(trip.perOrderPickupCost)} added per order</strong>
-                  </td>
-                  <td>{trip.orders.map((o) => o.orderNumber).join(", ")}</td>
-                </tr>
-              ))}
-              {!trips.length ? (
-                <tr>
-                  <td className="empty-state" colSpan={6}>
-                    No market trips logged yet. Select orders above to log a 50 RS trip!
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       {/* PRINTING JOBS TABLE */}
-      <section className="card users-table-card top-gap">
+      <section className="card users-table-card">
         <div className="card-padding">
           <h2 className="section-title">🖨️ Printing Jobs List</h2>
         </div>
@@ -317,6 +269,52 @@ export default function PrintingPage() {
                 <tr>
                   <td className="empty-state" colSpan={6}>
                     No printing jobs yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 🛵 MARKET TRIPS LOGS TABLE (VERY BOTTOM WITH SCROLLBAR) */}
+      <section className="card users-table-card top-gap" style={{ marginBottom: "24px" }}>
+        <div className="card-padding">
+          <h2 className="section-title">🛵 Logged 50 RS Pickup Trips History</h2>
+        </div>
+        <div className="table-wrap" style={{ maxHeight: "240px", overflowY: "auto" }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Trip #</th>
+                <th>Date</th>
+                <th>Trip Expense</th>
+                <th>Orders Count</th>
+                <th>Value Added Per Order</th>
+                <th>Orders Included</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trips.map((trip) => (
+                <tr key={trip.id}>
+                  <td className="code-text">{trip.tripNumber}</td>
+                  <td>{formatDate(trip.tripDate)}</td>
+                  <td className="negative-text">
+                    <strong>{formatCurrency(trip.totalTripCost)}</strong>
+                  </td>
+                  <td>
+                    <span className="badge">{trip.orders.length} orders</span>
+                  </td>
+                  <td className="positive-text">
+                    <strong>{formatCurrency(trip.perOrderPickupCost)} added per order</strong>
+                  </td>
+                  <td>{trip.orders.map((o) => o.orderNumber).join(", ")}</td>
+                </tr>
+              ))}
+              {!trips.length ? (
+                <tr>
+                  <td className="empty-state" colSpan={6}>
+                    No market trips logged yet. Select orders above to log a 50 RS trip!
                   </td>
                 </tr>
               ) : null}
