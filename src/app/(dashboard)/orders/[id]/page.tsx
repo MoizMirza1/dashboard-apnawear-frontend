@@ -44,7 +44,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     <section className="stats-grid">
       <div className="card stat-card"><div className="stat-label">Revenue</div><div className="stat-value">{formatCurrency(order.revenue)}</div></div>
       <div className="card stat-card"><div className="stat-label">Direct Cost</div><div className="stat-value">{formatCurrency(order.directCost)}</div></div>
-      <div className="card stat-card"><div className="stat-label">Profit After Ads</div><div className={`stat-value ${order.profitAfterAds >= 0 ? "positive-text" : "negative-text"}`}>{formatCurrency(order.profitAfterAds)}</div></div>
+      <div className="card stat-card"><div className="stat-label">Profit</div><div className={`stat-value ${(order.profit ?? 0) >= 0 ? "positive-text" : "negative-text"}`}>{formatCurrency(order.profit ?? 0)}</div></div>
       <div className="card stat-card"><div className="stat-label">Stock State</div><div className="stat-value small-stat">{labelize(order.stockState)}</div></div>
     </section>
     <section className="content-grid">

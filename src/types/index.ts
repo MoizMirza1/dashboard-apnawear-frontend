@@ -180,6 +180,7 @@ export type Order = {
   revenue: number;
   costs: { inventory: number; printing: number; printingPickup: number; flyer: number; label: number; courier: number; returnCost: number; other: number; adAllocation: number };
   directCost: number;
+  profit: number;
   profitBeforeAds: number;
   profitAfterAds: number;
   status: OrderStatus;

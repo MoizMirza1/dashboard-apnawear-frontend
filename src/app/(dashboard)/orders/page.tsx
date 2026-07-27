@@ -310,7 +310,10 @@ export default function OrdersPage() {
         advancePayment: Number(form.advancePayment) || 0,
         advanceAccount: form.advanceAccount,
         costs: {
-          printingPickup: Number(form.printingPickup) || 0,
+          inventory: projected.stockCost,
+          printingPickup: projected.pickupCost,
+          courier: projected.courierCost,
+          flyer: projected.flyerCost,
         },
         reserveStock: form.reserveStock,
       };
@@ -701,8 +704,8 @@ export default function OrdersPage() {
                   <td>{order.items.map((item) => `${item.designName} / ${item.sku} ×${item.quantity}`).join(", ")}</td>
                   <td>{formatCurrency(order.revenue)}</td>
                   <td>{formatCurrency(order.directCost)}</td>
-                  <td className={order.profitAfterAds >= 0 ? "positive-text" : "negative-text"}>
-                    <strong>{formatCurrency(order.profitAfterAds)}</strong>
+                  <td className={(order.profit ?? 0) >= 0 ? "positive-text" : "negative-text"}>
+                    <strong>{formatCurrency(order.profit ?? 0)}</strong>
                   </td>
                   <td>
                     <span className="badge">{labelize(order.status)}</span>
