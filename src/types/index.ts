@@ -26,6 +26,7 @@ export type BusinessSettings = {
     dropShoulderBlankCost: number;
     regularSellingPrice: number;
     dropShoulderSellingPrice: number;
+    defaultPrintingCost?: number;
     courier: number;
     flyer: number;
     flyerLabel: number;

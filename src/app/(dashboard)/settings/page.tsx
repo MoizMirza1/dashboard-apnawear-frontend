@@ -14,6 +14,7 @@ type FormValues = {
   dropShoulderBlankCost: number;
   regularSellingPrice: number;
   dropShoulderSellingPrice: number;
+  defaultPrintingCost: number;
   courier: number;
   flyer: number;
   flyerLabel: number;
@@ -26,6 +27,7 @@ function toFormValues(settings: BusinessSettings): FormValues {
     partnerAPercent: settings.ownership.partnerAPercent,
     partnerBPercent: settings.ownership.partnerBPercent,
     ...settings.defaultCosts,
+    defaultPrintingCost: settings.defaultCosts?.defaultPrintingCost ?? 400,
   };
 }
 
@@ -44,7 +46,7 @@ export default function SettingsPage() {
   }, []);
 
   function setNumber(name: keyof FormValues, value: string) {
-    setValues((current) => current ? { ...current, [name]: Number(value) } : current);
+    setValues((current) => (current ? { ...current, [name]: Number(value) } : current));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -56,10 +58,10 @@ export default function SettingsPage() {
     setSaving(true);
 
     try {
-      const response = await apiFetch<{ success: true; message: string; settings: BusinessSettings }>(
-        "/settings",
-        { method: "PATCH", body: JSON.stringify(values) },
-      );
+      const response = await apiFetch<{ success: true; message: string; settings: BusinessSettings }>("/settings", {
+        method: "PATCH",
+        body: JSON.stringify(values),
+      });
       setValues(toFormValues(response.settings));
       setSuccess(response.message);
     } catch (requestError) {
@@ -104,7 +106,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="field">
                   <label htmlFor="currency">Currency</label>
-                  <input className="input" disabled id="currency" value="PKR" readOnly />
+                  <input className="input" disabled id="currency" readOnly value="PKR" />
                 </div>
               </div>
             </div>
@@ -113,23 +115,24 @@ export default function SettingsPage() {
               <h3>Ownership split</h3>
               <p className="section-copy">The two percentages must total exactly 100.</p>
               <div className="two-column-form">
-                <NumberField label="Partner A share (%)" name="partnerAPercent" value={values.partnerAPercent} disabled={!canEdit} onChange={setNumber} max={100} suffix="%" />
-                <NumberField label="Partner B share (%)" name="partnerBPercent" value={values.partnerBPercent} disabled={!canEdit} onChange={setNumber} max={100} suffix="%" />
+                <NumberField disabled={!canEdit} label="Partner A share (%)" max={100} name="partnerAPercent" onChange={setNumber} suffix="%" value={values.partnerAPercent} />
+                <NumberField disabled={!canEdit} label="Partner B share (%)" max={100} name="partnerBPercent" onChange={setNumber} suffix="%" value={values.partnerBPercent} />
               </div>
             </div>
 
             <div className="form-section">
               <h3>Default order values</h3>
-              <p className="section-copy">These are starting values. Actual order costs remain editable later.</p>
+              <p className="section-copy">These are baseline default values. You can change them anytime here and adjust individual order costs during creation.</p>
               <div className="two-column-form">
-                <NumberField label="Regular blank-shirt cost" name="regularBlankCost" value={values.regularBlankCost} disabled={!canEdit} onChange={setNumber} />
-                <NumberField label="Drop Shoulder blank cost" name="dropShoulderBlankCost" value={values.dropShoulderBlankCost} disabled={!canEdit} onChange={setNumber} />
-                <NumberField label="Regular selling price" name="regularSellingPrice" value={values.regularSellingPrice} disabled={!canEdit} onChange={setNumber} />
-                <NumberField label="Drop Shoulder selling price" name="dropShoulderSellingPrice" value={values.dropShoulderSellingPrice} disabled={!canEdit} onChange={setNumber} />
-                <NumberField label="Courier default" name="courier" value={values.courier} disabled={!canEdit} onChange={setNumber} />
-                <NumberField label="Flyer cost" name="flyer" value={values.flyer} disabled={!canEdit} onChange={setNumber} />
-                <NumberField label="Flyer label cost" name="flyerLabel" value={values.flyerLabel} disabled={!canEdit} onChange={setNumber} />
-                <NumberField label="Printing pickup default" name="printingPickup" value={values.printingPickup} disabled={!canEdit} onChange={setNumber} />
+                <NumberField disabled={!canEdit} label="Regular blank-shirt cost" name="regularBlankCost" onChange={setNumber} value={values.regularBlankCost} />
+                <NumberField disabled={!canEdit} label="Drop Shoulder blank cost" name="dropShoulderBlankCost" onChange={setNumber} value={values.dropShoulderBlankCost} />
+                <NumberField disabled={!canEdit} label="Default printing cost per shirt" name="defaultPrintingCost" onChange={setNumber} value={values.defaultPrintingCost ?? 400} />
+                <NumberField disabled={!canEdit} label="Regular selling price" name="regularSellingPrice" onChange={setNumber} value={values.regularSellingPrice} />
+                <NumberField disabled={!canEdit} label="Drop Shoulder selling price" name="dropShoulderSellingPrice" onChange={setNumber} value={values.dropShoulderSellingPrice} />
+                <NumberField disabled={!canEdit} label="Courier default" name="courier" onChange={setNumber} value={values.courier} />
+                <NumberField disabled={!canEdit} label="Flyer cost" name="flyer" onChange={setNumber} value={values.flyer} />
+                <NumberField disabled={!canEdit} label="Flyer label cost" name="flyerLabel" onChange={setNumber} value={values.flyerLabel} />
+                <NumberField disabled={!canEdit} label="Printing pickup default" name="printingPickup" onChange={setNumber} value={values.printingPickup} />
               </div>
             </div>
 
@@ -166,7 +169,9 @@ function NumberField({
 }) {
   return (
     <div className="field">
-      <label htmlFor={name}>{label} ({suffix})</label>
+      <label htmlFor={name}>
+        {label} ({suffix})
+      </label>
       <input
         className="input"
         disabled={disabled}

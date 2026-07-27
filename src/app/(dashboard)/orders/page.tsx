@@ -25,6 +25,7 @@ const todayDefaults = {
   deliveryCharged: 300,
   discount: 0,
   advancePayment: 0,
+  advanceAccount: "EASYPAISA",
   adCampaignId: "",
   reserveStock: true,
 };
@@ -139,7 +140,6 @@ export default function OrdersPage() {
       );
       const parsedQty = p.quantity || 1;
       const parsedPrice = p.unitSellingPrice || 1300;
-      // If customer chat total is 1300 inclusive of shipping, set deliveryCharged to 0 so total equals 1300
       const isInclusiveTotal = p.unitSellingPrice === 1300 || p.codAmount === 0 || (p.advancePayment + p.codAmount === 1300);
       const deliveryFee = isInclusiveTotal ? 0 : 300;
 
@@ -156,6 +156,7 @@ export default function OrdersPage() {
         unitSellingPrice: parsedPrice,
         printingCost: parsedQty * (current.perShirtPrintingCost || 400),
         advancePayment: p.advancePayment ?? current.advancePayment,
+        advanceAccount: "EASYPAISA",
         deliveryCharged: deliveryFee,
       }));
       setMessage("📋 Chat message parsed & custom design form auto-filled successfully!");
@@ -247,6 +248,7 @@ export default function OrdersPage() {
         deliveryCharged: Number(form.deliveryCharged) || 300,
         discount: Number(form.discount) || 0,
         advancePayment: Number(form.advancePayment) || 0,
+        advanceAccount: form.advanceAccount,
         reserveStock: form.reserveStock,
       };
       const result = await apiFetch<{ success: true; message: string }>("/orders", { method: "POST", body: JSON.stringify(payload) });
@@ -377,7 +379,7 @@ export default function OrdersPage() {
                 <input className="input" placeholder="e.g. 1300 (Tee Price from customer message)" min="0" type="number" value={form.unitSellingPrice || ""} onChange={(e) => setForm({ ...form, unitSellingPrice: Number(e.target.value) })} />
               </div>
               <div className="field">
-                <label>Printing Cost Total (Rs.)</label>
+                <label>Printing Cost Total (Rs.) ✏️</label>
                 <input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} />
               </div>
               <div className="field">
@@ -389,8 +391,17 @@ export default function OrdersPage() {
                 <input className="input" min="0" type="number" value={form.discount || ""} onChange={(e) => setForm({ ...form, discount: Number(e.target.value) })} />
               </div>
               <div className="field">
-                <label>Advance payment</label>
+                <label>Advance payment (Rs.)</label>
                 <input className="input" min="0" type="number" value={form.advancePayment || ""} onChange={(e) => setForm({ ...form, advancePayment: Number(e.target.value) })} />
+              </div>
+              <div className="field">
+                <label>Advance Received Into Wallet</label>
+                <select className="select" value={form.advanceAccount} onChange={(e) => setForm({ ...form, advanceAccount: e.target.value })}>
+                  <option value="EASYPAISA">EasyPaisa</option>
+                  <option value="JAZZCASH">JazzCash</option>
+                  <option value="BANK">Bank Transfer</option>
+                  <option value="CASH">Cash</option>
+                </select>
               </div>
               <div className="field">
                 <label>Ad campaign</label>
