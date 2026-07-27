@@ -99,7 +99,9 @@ export default function OrdersPage() {
     const revenue = (Number(form.unitSellingPrice) || 0) * qty + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0);
     const stockCost = (selectedVariant?.effectiveUnitCost ?? 560) * qty;
     const printCost = form.printingCost !== "" ? Number(form.printingCost) : 0;
-    const pickupCost = Number(form.printingPickup) || 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayOrdersCount = orders.filter((o) => o.createdAt && o.createdAt.slice(0, 10) === todayStr).length + 1;
+    const pickupCost = Number((50 / Math.max(1, todayOrdersCount)).toFixed(2));
     const courierCost = 300;
     const flyerCost = 20;
     const totalCosts = stockCost + printCost + pickupCost + courierCost + flyerCost;
@@ -109,12 +111,13 @@ export default function OrdersPage() {
       stockCost,
       printCost,
       pickupCost,
+      todayOrdersCount,
       courierCost,
       flyerCost,
       totalCosts,
       netProfit,
     };
-  }, [form, selectedVariant]);
+  }, [form, selectedVariant, orders]);
 
   function updateQuantity(newQty: number) {
     const qty = Math.max(1, newQty);
@@ -552,12 +555,13 @@ export default function OrdersPage() {
                 <span>• Printing Cost</span>
                 <strong>{form.printingCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
               </div>
-              {projected.pickupCost > 0 ? (
-                <div>
-                  <span>• Pickup Fee (Allocated)</span>
-                  <strong>{formatCurrency(projected.pickupCost)}</strong>
-                </div>
-              ) : null}
+              <div>
+                <span>• Pickup Fee (Auto-split ⚡)</span>
+                <strong>
+                  {formatCurrency(projected.pickupCost)}{" "}
+                  <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small>
+                </strong>
+              </div>
               <div>
                 <span>• Courier Delivery Expense</span>
                 <strong>{formatCurrency(projected.courierCost)}</strong>
