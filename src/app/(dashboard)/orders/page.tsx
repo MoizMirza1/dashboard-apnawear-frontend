@@ -105,7 +105,9 @@ export default function OrdersPage() {
     const revenue = (Number(form.unitSellingPrice) || 0) * qty + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0);
     const stockCost = (selectedVariant?.effectiveUnitCost ?? 400) * qty;
     const printCost = Number(form.printingCost) || 0;
-    const pickupCost = Number(form.printingPickup) ?? 50;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayOrdersCount = orders.filter((o) => o.createdAt && o.createdAt.slice(0, 10) === todayStr).length + 1;
+    const pickupCost = Math.round((50 / Math.max(1, todayOrdersCount)) * 100) / 100;
     const courierCost = 300;
     const flyerCost = 20;
     const totalCosts = stockCost + printCost + pickupCost + courierCost + flyerCost;
@@ -115,12 +117,13 @@ export default function OrdersPage() {
       stockCost,
       printCost,
       pickupCost,
+      todayOrdersCount,
       courierCost,
       flyerCost,
       totalCosts,
       netProfit,
     };
-  }, [form, selectedVariant]);
+  }, [form, selectedVariant, orders]);
 
   function updateQuantity(newQty: number) {
     const qty = Math.max(1, newQty);
@@ -427,20 +430,6 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="field">
-                <label>Printing Pickup Fee (Rs.) ⚡ Auto-Splits</label>
-                <input
-                  className="input"
-                  placeholder="e.g. 50 (auto-splits 50 RS ÷ today's orders)"
-                  min="0"
-                  type="number"
-                  value={form.printingPickup}
-                  onChange={(e) => setForm({ ...form, printingPickup: Number(e.target.value) })}
-                />
-                <small className="field-help" style={{ color: "#64748b", fontSize: "0.75rem" }}>
-                  Auto-splits 50 RS total pickup trip fee equally across today's orders.
-                </small>
-              </div>
-              <div className="field">
                 <label>Delivery Charged (Fixed Rs. 300)</label>
                 <input className="input" min="0" type="number" value={form.deliveryCharged ?? 300} onChange={(e) => setForm({ ...form, deliveryCharged: Number(e.target.value) })} />
               </div>
@@ -509,8 +498,8 @@ export default function OrdersPage() {
               <strong>{projected.printCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
             </div>
             <div>
-              <span>Printing pickup fee</span>
-              <strong>{formatCurrency(projected.pickupCost)}</strong>
+              <span>Pickup fee (Auto-split ⚡)</span>
+              <strong>{formatCurrency(projected.pickupCost)} <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small></strong>
             </div>
             <div>
               <span>Delivery cost</span>
