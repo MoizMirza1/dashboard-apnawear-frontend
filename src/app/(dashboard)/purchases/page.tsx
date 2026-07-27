@@ -17,8 +17,8 @@ type PurchaseLine = {
 type PurchaseForm = {
   supplierId: string;
   items: PurchaseLine[];
-  transportCost: number;
-  otherCost: number;
+  transportCost: number | string;
+  otherCost: number | string;
   receivedAt: string;
   invoiceReference: string;
   notes: string;
@@ -43,7 +43,7 @@ function initialForm(): PurchaseForm {
   return {
     supplierId: "",
     items: [newLine()],
-    transportCost: 0,
+    transportCost: "",
     otherCost: 0,
     receivedAt: today,
     invoiceReference: "",
@@ -101,7 +101,7 @@ export default function PurchasesPage() {
       (sum, item) => sum + Math.max(item.quantity, 0) * Math.max(item.unitPurchaseCost, 0),
       0,
     );
-    const sharedCost = form.transportCost + form.otherCost;
+    const sharedCost = (Number(form.transportCost) || 0) + (Number(form.otherCost) || 0);
     const totalCost = shirtCost + sharedCost;
     const sharedCostPerShirt = totalQuantity > 0 ? sharedCost / totalQuantity : 0;
 
@@ -206,8 +206,8 @@ export default function PurchasesPage() {
               quantity,
               unitPurchaseCost,
             })),
-            transportCost: form.transportCost,
-            otherCost: form.otherCost,
+            transportCost: Number(form.transportCost) || 0,
+            otherCost: Number(form.otherCost) || 0,
             receivedAt: form.receivedAt,
             invoiceReference: form.invoiceReference,
             notes: form.notes,
@@ -285,12 +285,29 @@ export default function PurchasesPage() {
                 <small className="field-help">Leave blank when the supplier did not provide an invoice.</small>
               </div>
               <div className="field">
-                <label htmlFor="transportCost">Total transport cost (PKR)</label>
-                <input className="input" id="transportCost" min="0" type="number" value={form.transportCost} onChange={(event) => setForm({ ...form, transportCost: Number(event.target.value) })} />
+                <label htmlFor="transportCost" style={{ color: "#dc2626", fontWeight: "700" }}>Total transport cost (PKR) * REQUIRED</label>
+                <input
+                  className="input"
+                  id="transportCost"
+                  min="0"
+                  placeholder="Enter transport/fuel cost (e.g. 1200)"
+                  required
+                  type="number"
+                  value={form.transportCost}
+                  onChange={(event) => setForm({ ...form, transportCost: event.target.value })}
+                  style={{ borderColor: !form.transportCost ? "#f87171" : undefined }}
+                />
               </div>
               <div className="field">
-                <label htmlFor="otherCost">Other shared purchase cost (PKR)</label>
-                <input className="input" id="otherCost" min="0" type="number" value={form.otherCost} onChange={(event) => setForm({ ...form, otherCost: Number(event.target.value) })} />
+                <label htmlFor="otherCost">Other shared purchase cost (PKR) <span className="optional-label">(optional, defaults to 0)</span></label>
+                <input
+                  className="input"
+                  id="otherCost"
+                  min="0"
+                  type="number"
+                  value={form.otherCost}
+                  onChange={(event) => setForm({ ...form, otherCost: event.target.value })}
+                />
               </div>
               <div className="field">
                 <label htmlFor="purchaseNotes">Notes <span className="optional-label">(optional)</span></label>
@@ -379,8 +396,8 @@ export default function PurchasesPage() {
             <div><span>Different shirt variants</span><strong>{form.items.length}</strong></div>
             <div><span>Total shirts</span><strong>{totals.totalQuantity}</strong></div>
             <div><span>Blank-shirt cost</span><strong>{formatCurrency(totals.shirtCost)}</strong></div>
-            <div><span>Transport</span><strong>{formatCurrency(form.transportCost)}</strong></div>
-            <div><span>Other cost</span><strong>{formatCurrency(form.otherCost)}</strong></div>
+            <div><span>Transport</span><strong>{formatCurrency(Number(form.transportCost) || 0)}</strong></div>
+            <div><span>Other cost</span><strong>{formatCurrency(Number(form.otherCost) || 0)}</strong></div>
             <div className="calculation-total"><span>Total purchase cost</span><strong>{formatCurrency(totals.totalCost)}</strong></div>
             <div className="landed-highlight"><span>Shared cost per shirt</span><strong>{formatCurrency(totals.sharedCostPerShirt)}</strong></div>
           </div>
