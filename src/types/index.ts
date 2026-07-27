@@ -205,6 +205,20 @@ export type PrintingJob = {
   updatedAt: string;
 };
 
+export type MarketTrip = {
+  id: string;
+  tripNumber: string;
+  tripDate: string;
+  riderName: string;
+  fuelExpense: number;
+  otherExpense: number;
+  totalTripCost: number;
+  orders: Array<{ id: string; orderNumber: string; customer: { name: string }; status: string; revenue: number }>;
+  perOrderPickupCost: number;
+  notes: string;
+  createdAt: string;
+};
+
 export type Shipment = {
   id: string;
   shipmentNumber: string;
