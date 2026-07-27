@@ -57,15 +57,17 @@ export default function OrdersPage() {
 
   async function load() {
     try {
-      const [orderData, productData, variantData, campaignData, settingsData] = await Promise.all([
+      const [orderData, productData, variantData, campaignData, settingsData, jobData] = await Promise.all([
         apiFetch<{ success: true; orders: Order[] }>("/orders?limit=200"),
         apiFetch<{ success: true; products: ProductDesign[] }>("/products?status=ACTIVE"),
         apiFetch<{ success: true; variants: GarmentVariant[] }>("/inventory/variants?active=true"),
         apiFetch<{ success: true; campaigns: AdCampaign[] }>("/ad-campaigns"),
         apiFetch<{ success: true; settings: any }>("/settings").catch(() => null),
+        apiFetch<{ success: true; jobs: any[] }>("/printing-jobs").catch(() => ({ success: true, jobs: [] })),
       ]);
 
-      const defaultPrinting = settingsData?.settings?.defaultCosts?.defaultPrintingCost ?? 400;
+      const latestJobCost = jobData?.jobs?.[0]?.printingCost;
+      const defaultPrinting = latestJobCost || settingsData?.settings?.defaultCosts?.defaultPrintingCost || 400;
       const defaultPickup = settingsData?.settings?.defaultCosts?.printingPickup ?? 50;
 
       setOrders(orderData.orders);
@@ -74,6 +76,7 @@ export default function OrdersPage() {
       setCampaigns(campaignData.campaigns);
       setForm((current) => ({
         ...current,
+        printingCost: current.printingCost || String(defaultPrinting),
         perShirtPrintingCost: defaultPrinting,
         printingPickup: defaultPickup,
       }));
