@@ -16,6 +16,7 @@ const todayDefaults = {
   source: "INSTAGRAM_ORGANIC",
   instagramUsername: "",
   productDesignId: "",
+  designName: "",
   garmentVariantId: "",
   quantity: 1,
   unitSellingPrice: 1300,
@@ -66,6 +67,7 @@ export default function OrdersPage() {
         return {
           ...current,
           productDesignId: product?.id ?? "",
+          designName: current.designName || product?.name || "Custom Graphic Print",
           garmentVariantId: variant?.id ?? "",
           unitSellingPrice: price ?? current.unitSellingPrice,
         };
@@ -115,9 +117,10 @@ export default function OrdersPage() {
         whatsapp: p.phone || current.whatsapp,
         city: p.city || current.city,
         address: p.address || current.address,
+        designName: p.designName || current.designName || "Custom Graphic Print",
         unitSellingPrice: p.codAmount > 0 ? p.codAmount : current.unitSellingPrice,
       }));
-      setMessage("📋 Chat message parsed & form auto-filled successfully!");
+      setMessage("📋 Chat message parsed & custom design form auto-filled successfully!");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -196,6 +199,7 @@ export default function OrdersPage() {
         items: [
           {
             productDesignId: form.productDesignId,
+            designName: form.designName || "Custom Graphic Print",
             garmentVariantId: form.garmentVariantId,
             quantity: Number(form.quantity) || 1,
             unitSellingPrice: Number(form.unitSellingPrice) || 0,
@@ -240,7 +244,7 @@ export default function OrdersPage() {
       <div className="page-header">
         <div>
           <h1>Orders & Automated Fulfillment</h1>
-          <p className="muted">Create orders, reserve FIFO stock, paste WhatsApp chats, and quick-fulfill orders in 1 click.</p>
+          <p className="muted">Create orders with custom designs, reserve FIFO stock, paste WhatsApp chats, and quick-fulfill orders in 1 click.</p>
         </div>
         <span className="badge">{orders.length} ORDERS</span>
       </div>
@@ -259,7 +263,7 @@ export default function OrdersPage() {
         <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flexWrap: "wrap" }}>
           <textarea
             className="input textarea"
-            placeholder="Paste raw WhatsApp or Instagram customer order chat message here... (e.g. Name: Ali, Phone: 03001234567, City: Lahore, Address: House 12, Price: 1500)"
+            placeholder="Paste raw WhatsApp or Instagram customer order chat message here... (e.g. Name: Ali, Phone: 03001234567, City: Lahore, Address: House 12, Design: Vintage Anime, Price: 1500)"
             rows={2}
             style={{ flex: 1, minWidth: "300px" }}
             value={chatText}
@@ -310,20 +314,14 @@ export default function OrdersPage() {
                 <label>Address</label>
                 <textarea className="input textarea" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
               </div>
-              <div className="field">
-                <label>Design</label>
-                <select className="select" required value={form.productDesignId} onChange={(e) => updateSelection(e.target.value)}>
-                  <option value="">Select</option>
-                  {products.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+              {/* CUSTOM TEXT DESIGN FIELD */}
+              <div className="field field-span-2">
+                <label>Design Name (Custom Print)</label>
+                <input className="input" placeholder="e.g. Vintage Anime Oversized Print" required value={form.designName} onChange={(e) => setForm({ ...form, designName: e.target.value })} />
               </div>
               <div className="field">
                 <label>Blank shirt SKU</label>
-                <select className="select" required value={form.garmentVariantId} onChange={(e) => updateSelection(form.productDesignId, e.target.value)}>
+                <select className="select" required value={form.garmentVariantId} onChange={(e) => setForm({ ...form, garmentVariantId: e.target.value })}>
                   <option value="">Select</option>
                   {variants.map((item) => (
                     <option key={item.id} value={item.id}>
@@ -374,7 +372,7 @@ export default function OrdersPage() {
               </div>
             </div>
             <div className="actions-row">
-              <button className="button" disabled={saving || !products.length || !variants.length}>
+              <button className="button" disabled={saving || !variants.length}>
                 {saving ? "Creating..." : "Create order"}
               </button>
             </div>
@@ -385,7 +383,7 @@ export default function OrdersPage() {
           <div className="calculation-list">
             <div>
               <span>Design</span>
-              <strong>{selectedProduct?.name ?? "—"}</strong>
+              <strong>{form.designName || selectedProduct?.name || "Custom Graphic"}</strong>
             </div>
             <div>
               <span>SKU</span>
@@ -437,7 +435,7 @@ export default function OrdersPage() {
                 </th>
                 <th>Order</th>
                 <th>Customer</th>
-                <th>Items</th>
+                <th>Items / Custom Design</th>
                 <th>Revenue</th>
                 <th>Direct cost</th>
                 <th>Profit</th>
