@@ -21,7 +21,8 @@ const todayDefaults = {
   quantity: 1,
   unitSellingPrice: 1300,
   printingCost: 400,
-  deliveryCharged: 0,
+  perShirtPrintingCost: 400,
+  deliveryCharged: 300,
   discount: 0,
   advancePayment: 0,
   adCampaignId: "",
@@ -50,12 +51,17 @@ export default function OrdersPage() {
 
   async function load() {
     try {
-      const [orderData, productData, variantData, campaignData] = await Promise.all([
+      const [orderData, productData, variantData, campaignData, settingsData] = await Promise.all([
         apiFetch<{ success: true; orders: Order[] }>("/orders?limit=200"),
         apiFetch<{ success: true; products: ProductDesign[] }>("/products?status=ACTIVE"),
         apiFetch<{ success: true; variants: GarmentVariant[] }>("/inventory/variants?active=true"),
         apiFetch<{ success: true; campaigns: AdCampaign[] }>("/ad-campaigns"),
+        apiFetch<{ success: true; settings: any }>("/settings").catch(() => null),
       ]);
+
+      const defaultPrinting = settingsData?.settings?.defaultCosts?.defaultPrintingCost ?? 400;
+      const defaultCourier = settingsData?.settings?.defaultCosts?.courier ?? 300;
+
       setOrders(orderData.orders);
       setProducts(productData.products);
       setVariants(variantData.variants);
@@ -70,6 +76,9 @@ export default function OrdersPage() {
           designName: current.designName || product?.name || "Custom Graphic Print",
           garmentVariantId: variant?.id ?? "",
           unitSellingPrice: price ?? current.unitSellingPrice,
+          deliveryCharged: defaultCourier,
+          perShirtPrintingCost: defaultPrinting,
+          printingCost: (current.quantity || 1) * defaultPrinting,
         };
       });
     } catch (requestError) {
@@ -85,19 +94,34 @@ export default function OrdersPage() {
 
   const selectedVariant = variants.find((item) => item.id === form.garmentVariantId);
   const selectedProduct = products.find((item) => item.id === form.productDesignId);
-  const projected = useMemo(
-    () => ({
-      revenue: (Number(form.unitSellingPrice) || 0) * (Number(form.quantity) || 0) + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0),
-      stockCost: (selectedVariant?.effectiveUnitCost ?? 0) * (Number(form.quantity) || 0),
-    }),
-    [form, selectedVariant],
-  );
 
-  function updateSelection(productId: string, variantId = form.garmentVariantId) {
-    const product = products.find((item) => item.id === productId);
-    const variant = variants.find((item) => item.id === variantId);
-    const price = variant?.garmentType === "DROP_SHOULDER" ? product?.dropShoulderSellingPrice : product?.regularSellingPrice;
-    setForm((current) => ({ ...current, productDesignId: productId, garmentVariantId: variantId, unitSellingPrice: price ?? current.unitSellingPrice }));
+  const projected = useMemo(() => {
+    const qty = Number(form.quantity) || 1;
+    const revenue = (Number(form.unitSellingPrice) || 0) * qty + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0);
+    const stockCost = (selectedVariant?.effectiveUnitCost ?? 400) * qty;
+    const printCost = Number(form.printingCost) || qty * (form.perShirtPrintingCost || 400);
+    const courierCost = 300;
+    const flyerCost = 20;
+    const totalCosts = stockCost + printCost + courierCost + flyerCost;
+    const netProfit = revenue - totalCosts;
+    return {
+      revenue,
+      stockCost,
+      printCost,
+      courierCost,
+      flyerCost,
+      totalCosts,
+      netProfit,
+    };
+  }, [form, selectedVariant]);
+
+  function updateQuantity(newQty: number) {
+    const qty = Math.max(1, newQty);
+    setForm((current) => ({
+      ...current,
+      quantity: qty,
+      printingCost: qty * (current.perShirtPrintingCost || 400),
+    }));
   }
 
   async function parseChatText() {
@@ -113,18 +137,26 @@ export default function OrdersPage() {
       const matchingVariant = variants.find((v) =>
         p.size ? v.size.toLowerCase() === p.size.toLowerCase() || v.sku.toLowerCase().includes(p.size.toLowerCase()) : false
       );
+      const parsedQty = p.quantity || 1;
+      const parsedPrice = p.unitSellingPrice || 1300;
+      // If customer chat total is 1300 inclusive of shipping, set deliveryCharged to 0 so total equals 1300
+      const isInclusiveTotal = p.unitSellingPrice === 1300 || p.codAmount === 0 || (p.advancePayment + p.codAmount === 1300);
+      const deliveryFee = isInclusiveTotal ? 0 : 300;
+
       setForm((current) => ({
         ...current,
         customerName: p.name || current.customerName,
         phone: p.phone || current.phone,
-        whatsapp: p.phone || current.whatsapp,
+        whatsapp: p.phone || current.whatsapp || current.phone,
         city: p.city || current.city,
         address: p.address || current.address,
         designName: p.designName || current.designName || "Custom Graphic Print",
         garmentVariantId: matchingVariant?.id || current.garmentVariantId,
-        quantity: p.quantity || current.quantity,
-        unitSellingPrice: p.unitSellingPrice || current.unitSellingPrice,
+        quantity: parsedQty,
+        unitSellingPrice: parsedPrice,
+        printingCost: parsedQty * (current.perShirtPrintingCost || 400),
         advancePayment: p.advancePayment ?? current.advancePayment,
+        deliveryCharged: deliveryFee,
       }));
       setMessage("📋 Chat message parsed & custom design form auto-filled successfully!");
     } catch (err: any) {
@@ -194,7 +226,7 @@ export default function OrdersPage() {
         customer: {
           name: form.customerName,
           phone: form.phone,
-          whatsapp: form.whatsapp,
+          whatsapp: form.whatsapp || form.phone,
           city: form.city,
           address: form.address,
           instagramUsername: form.instagramUsername,
@@ -212,14 +244,14 @@ export default function OrdersPage() {
             printingCost: Number(form.printingCost) || 0,
           },
         ],
-        deliveryCharged: Number(form.deliveryCharged) || 0,
+        deliveryCharged: Number(form.deliveryCharged) || 300,
         discount: Number(form.discount) || 0,
         advancePayment: Number(form.advancePayment) || 0,
         reserveStock: form.reserveStock,
       };
       const result = await apiFetch<{ success: true; message: string }>("/orders", { method: "POST", body: JSON.stringify(payload) });
       setMessage(result.message);
-      setForm((current) => ({ ...todayDefaults, productDesignId: current.productDesignId, garmentVariantId: current.garmentVariantId, unitSellingPrice: current.unitSellingPrice }));
+      setForm((current) => ({ ...todayDefaults, productDesignId: current.productDesignId, garmentVariantId: current.garmentVariantId, unitSellingPrice: current.unitSellingPrice, deliveryCharged: 300 }));
       await load();
     } catch (requestError) {
       setError((requestError as Error).message);
@@ -269,8 +301,8 @@ export default function OrdersPage() {
         <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flexWrap: "wrap" }}>
           <textarea
             className="input textarea"
-            placeholder="Paste raw WhatsApp or Instagram customer order chat message here... (e.g. Name: Ali, Phone: 03001234567, City: Lahore, Address: House 12, Design: Vintage Anime, Price: 1500)"
-            rows={2}
+            placeholder="Paste raw WhatsApp or Instagram customer order chat message here... (e.g. Name: Wasiq, Product: Tokyo Ghoul Tee, Size: Large, City: Lahore, Tee Price: 1300, Contact: +92 347 4289240)"
+            rows={3}
             style={{ flex: 1, minWidth: "300px" }}
             value={chatText}
             onChange={(e) => setChatText(e.target.value)}
@@ -291,8 +323,8 @@ export default function OrdersPage() {
                 <input className="input" required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} />
               </div>
               <div className="field">
-                <label>Phone</label>
-                <input className="input" required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <label>Phone / Contact</label>
+                <input className="input" required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value, whatsapp: form.whatsapp || e.target.value })} />
               </div>
               <div className="field">
                 <label>WhatsApp</label>
@@ -323,12 +355,12 @@ export default function OrdersPage() {
               {/* CUSTOM TEXT DESIGN FIELD */}
               <div className="field field-span-2">
                 <label>Design Name (Custom Print)</label>
-                <input className="input" placeholder="e.g. Vintage Anime Oversized Print" required value={form.designName} onChange={(e) => setForm({ ...form, designName: e.target.value })} />
+                <input className="input" placeholder="e.g. Tokyo Ghoul Graphic Tee" required value={form.designName} onChange={(e) => setForm({ ...form, designName: e.target.value })} />
               </div>
               <div className="field">
                 <label>Blank shirt SKU</label>
                 <select className="select" required value={form.garmentVariantId} onChange={(e) => setForm({ ...form, garmentVariantId: e.target.value })}>
-                  <option value="">Select</option>
+                  <option value="">Select SKU</option>
                   {variants.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.sku} · {item.availableQty} available
@@ -338,19 +370,19 @@ export default function OrdersPage() {
               </div>
               <div className="field">
                 <label>Quantity</label>
-                <input className="input" min="1" type="number" value={form.quantity || ""} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+                <input className="input" min="1" type="number" value={form.quantity || ""} onChange={(e) => updateQuantity(Number(e.target.value))} />
               </div>
               <div className="field">
-                <label>Selling price / shirt</label>
-                <input className="input" min="0" type="number" value={form.unitSellingPrice || ""} onChange={(e) => setForm({ ...form, unitSellingPrice: Number(e.target.value) })} />
+                <label>Customer Selling Price (Tee Price charged to customer)</label>
+                <input className="input" placeholder="e.g. 1300 (Tee Price from customer message)" min="0" type="number" value={form.unitSellingPrice || ""} onChange={(e) => setForm({ ...form, unitSellingPrice: Number(e.target.value) })} />
               </div>
               <div className="field">
-                <label>Printing cost total</label>
+                <label>Printing Cost Total (Rs.)</label>
                 <input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} />
               </div>
               <div className="field">
-                <label>Delivery charged to customer</label>
-                <input className="input" min="0" type="number" value={form.deliveryCharged || ""} onChange={(e) => setForm({ ...form, deliveryCharged: Number(e.target.value) })} />
+                <label>Delivery Charged (Fixed Rs. 300)</label>
+                <input className="input" min="0" type="number" value={form.deliveryCharged ?? 300} onChange={(e) => setForm({ ...form, deliveryCharged: Number(e.target.value) })} />
               </div>
               <div className="field">
                 <label>Discount</label>
@@ -400,12 +432,26 @@ export default function OrdersPage() {
               <strong>{selectedVariant?.availableQty ?? 0}</strong>
             </div>
             <div>
-              <span>Estimated blank cost</span>
+              <span>Blank shirt cost</span>
               <strong>{formatCurrency(projected.stockCost)}</strong>
             </div>
-            <div className="calculation-total">
+            <div>
+              <span>Printing cost</span>
+              <strong>{formatCurrency(projected.printCost)}</strong>
+            </div>
+            <div>
+              <span>Delivery cost</span>
+              <strong>{formatCurrency(projected.courierCost)}</strong>
+            </div>
+            <div>
               <span>Expected revenue</span>
               <strong>{formatCurrency(projected.revenue)}</strong>
+            </div>
+            <div className="calculation-total" style={{ borderTop: "2px solid #e2e8f0", paddingTop: "8px", marginTop: "8px" }}>
+              <span>Expected Net Profit</span>
+              <strong className={projected.netProfit >= 0 ? "positive-text" : "negative-text"} style={{ fontSize: "1.15rem" }}>
+                {formatCurrency(projected.netProfit)}
+              </strong>
             </div>
           </div>
         </aside>
