@@ -22,6 +22,7 @@ const todayDefaults = {
   unitSellingPrice: 1300,
   printingCost: "",
   perShirtPrintingCost: 400,
+  printingPickup: 50,
   deliveryCharged: 300,
   discount: 0,
   advancePayment: 0,
@@ -62,6 +63,7 @@ export default function OrdersPage() {
 
       const defaultPrinting = settingsData?.settings?.defaultCosts?.defaultPrintingCost ?? 400;
       const defaultCourier = settingsData?.settings?.defaultCosts?.courier ?? 300;
+      const defaultPickup = settingsData?.settings?.defaultCosts?.printingPickup ?? 50;
 
       setOrders(orderData.orders);
       setProducts(productData.products);
@@ -79,6 +81,7 @@ export default function OrdersPage() {
           unitSellingPrice: price ?? current.unitSellingPrice,
           deliveryCharged: defaultCourier,
           perShirtPrintingCost: defaultPrinting,
+          printingPickup: defaultPickup,
           printingCost: current.printingCost,
         };
       });
@@ -101,14 +104,16 @@ export default function OrdersPage() {
     const revenue = (Number(form.unitSellingPrice) || 0) * qty + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0);
     const stockCost = (selectedVariant?.effectiveUnitCost ?? 400) * qty;
     const printCost = Number(form.printingCost) || 0;
+    const pickupCost = Number(form.printingPickup) ?? 50;
     const courierCost = 300;
     const flyerCost = 20;
-    const totalCosts = stockCost + printCost + courierCost + flyerCost;
+    const totalCosts = stockCost + printCost + pickupCost + courierCost + flyerCost;
     const netProfit = revenue - totalCosts;
     return {
       revenue,
       stockCost,
       printCost,
+      pickupCost,
       courierCost,
       flyerCost,
       totalCosts,
@@ -253,6 +258,9 @@ export default function OrdersPage() {
         discount: Number(form.discount) || 0,
         advancePayment: Number(form.advancePayment) || 0,
         advanceAccount: form.advanceAccount,
+        costs: {
+          printingPickup: Number(form.printingPickup) ?? 50,
+        },
         reserveStock: form.reserveStock,
       };
       const result = await apiFetch<{ success: true; message: string }>("/orders", { method: "POST", body: JSON.stringify(payload) });
@@ -396,6 +404,20 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="field">
+                <label>Printing Pickup Fee (Rs.)</label>
+                <input
+                  className="input"
+                  placeholder="e.g. 50 (or 25 if 1 trip covers 2 orders)"
+                  min="0"
+                  type="number"
+                  value={form.printingPickup}
+                  onChange={(e) => setForm({ ...form, printingPickup: Number(e.target.value) })}
+                />
+                <small className="field-help" style={{ color: "#64748b", fontSize: "0.75rem" }}>
+                  Tip: If 1 pickup trip collects 2 prints, set Rs. 25 on each order (or 0 for shared pickup).
+                </small>
+              </div>
+              <div className="field">
                 <label>Delivery Charged (Fixed Rs. 300)</label>
                 <input className="input" min="0" type="number" value={form.deliveryCharged ?? 300} onChange={(e) => setForm({ ...form, deliveryCharged: Number(e.target.value) })} />
               </div>
@@ -462,6 +484,10 @@ export default function OrdersPage() {
             <div>
               <span>Printing cost</span>
               <strong>{projected.printCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
+            </div>
+            <div>
+              <span>Printing pickup fee</span>
+              <strong>{formatCurrency(projected.pickupCost)}</strong>
             </div>
             <div>
               <span>Delivery cost</span>
