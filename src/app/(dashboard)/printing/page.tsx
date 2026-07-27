@@ -284,8 +284,7 @@ export default function PrintingPage() {
                 <th>Job</th>
                 <th>Order</th>
                 <th>Printer</th>
-                <th>Printing Cost</th>
-                <th>Pickup Cost (Allocated)</th>
+                <th>Printing Cost (Incl. Pickup)</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
@@ -299,9 +298,8 @@ export default function PrintingPage() {
                     <div className="table-subtext">{job.order.customer.name}</div>
                   </td>
                   <td>{job.printerName}</td>
-                  <td>{formatCurrency(job.printingCost)}</td>
                   <td>
-                    <strong>{formatCurrency(job.pickupCost)}</strong>
+                    <strong>{formatCurrency(job.printingCost + (job.pickupCost || 0))}</strong>
                   </td>
                   <td>
                     <span className="badge">{labelize(job.status)}</span>
@@ -317,7 +315,7 @@ export default function PrintingPage() {
               ))}
               {!jobs.length ? (
                 <tr>
-                  <td className="empty-state" colSpan={7}>
+                  <td className="empty-state" colSpan={6}>
                     No printing jobs yet.
                   </td>
                 </tr>
