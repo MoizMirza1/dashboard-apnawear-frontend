@@ -19,13 +19,13 @@ const todayDefaults = {
   designName: "",
   garmentVariantId: "",
   quantity: 1,
-  unitSellingPrice: 1300,
+  unitSellingPrice: "" as number | string,
   printingCost: "",
   perShirtPrintingCost: 400,
   printingPickup: 50,
-  deliveryCharged: 300,
-  discount: 0,
-  advancePayment: 0,
+  deliveryCharged: "" as number | string,
+  discount: "" as number | string,
+  advancePayment: "" as number | string,
   advanceAccount: "EASYPAISA",
   adCampaignId: "",
   reserveStock: true,
@@ -63,7 +63,6 @@ export default function OrdersPage() {
       ]);
 
       const defaultPrinting = settingsData?.settings?.defaultCosts?.defaultPrintingCost ?? 400;
-      const defaultCourier = settingsData?.settings?.defaultCosts?.courier ?? 300;
       const defaultPickup = settingsData?.settings?.defaultCosts?.printingPickup ?? 50;
 
       setOrders(orderData.orders);
@@ -73,14 +72,13 @@ export default function OrdersPage() {
       setForm((current) => {
         const product = productData.products.find((item) => item.id === current.productDesignId) ?? productData.products[0];
         const variant = variantData.variants.find((item) => item.id === current.garmentVariantId) ?? variantData.variants[0];
-        const price = variant?.garmentType === "DROP_SHOULDER" ? product?.dropShoulderSellingPrice : product?.regularSellingPrice;
         return {
           ...current,
           productDesignId: product?.id ?? "",
-          designName: current.designName || product?.name || "Custom Graphic Print",
           garmentVariantId: variant?.id ?? "",
-          unitSellingPrice: price ?? current.unitSellingPrice,
-          deliveryCharged: defaultCourier,
+          designName: current.designName,
+          unitSellingPrice: current.unitSellingPrice,
+          deliveryCharged: current.deliveryCharged,
           perShirtPrintingCost: defaultPrinting,
           printingPickup: defaultPickup,
           printingCost: current.printingCost,
@@ -271,11 +269,11 @@ export default function OrdersPage() {
             designName: form.designName || "Custom Graphic Print",
             garmentVariantId: form.garmentVariantId,
             quantity: Number(form.quantity) || 1,
-            unitSellingPrice: Number(form.unitSellingPrice) || 0,
+            unitSellingPrice: form.unitSellingPrice !== "" ? Number(form.unitSellingPrice) : 1300,
             printingCost: Number(form.printingCost) || 0,
           },
         ],
-        deliveryCharged: Number(form.deliveryCharged) || 300,
+        deliveryCharged: form.deliveryCharged !== "" ? Number(form.deliveryCharged) : 300,
         discount: Number(form.discount) || 0,
         advancePayment: Number(form.advancePayment) || 0,
         advanceAccount: form.advanceAccount,
@@ -286,7 +284,7 @@ export default function OrdersPage() {
       };
       const result = await apiFetch<{ success: true; message: string }>("/orders", { method: "POST", body: JSON.stringify(payload) });
       setMessage(result.message);
-      setForm((current) => ({ ...todayDefaults, productDesignId: current.productDesignId, garmentVariantId: current.garmentVariantId, unitSellingPrice: current.unitSellingPrice, deliveryCharged: 300 }));
+      setForm((current) => ({ ...todayDefaults, productDesignId: current.productDesignId, garmentVariantId: current.garmentVariantId }));
       await load();
     } catch (requestError) {
       setError((requestError as Error).message);
@@ -414,7 +412,7 @@ export default function OrdersPage() {
               </div>
               <div className="field">
                 <label>Customer Selling Price (Tee Price charged to customer)</label>
-                <input className="input" placeholder="e.g. 1300 (Tee Price from customer message)" min="0" type="number" value={form.unitSellingPrice || ""} onChange={(e) => setForm({ ...form, unitSellingPrice: Number(e.target.value) })} />
+                <input className="input" placeholder="e.g. 1300" min="0" type="number" value={form.unitSellingPrice} onChange={(e) => setForm({ ...form, unitSellingPrice: e.target.value })} />
               </div>
               <div className="field">
                 <label style={{ color: "#dc2626", fontWeight: "700" }}>Printing Cost Total (Rs.) * REQUIRED</label>
@@ -430,16 +428,16 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="field">
-                <label>Delivery Charged (Fixed Rs. 300)</label>
-                <input className="input" min="0" type="number" value={form.deliveryCharged ?? 300} onChange={(e) => setForm({ ...form, deliveryCharged: Number(e.target.value) })} />
+                <label>Delivery Charged (Rs.)</label>
+                <input className="input" placeholder="e.g. 300" min="0" type="number" value={form.deliveryCharged} onChange={(e) => setForm({ ...form, deliveryCharged: e.target.value })} />
               </div>
               <div className="field">
                 <label>Discount</label>
-                <input className="input" min="0" type="number" value={form.discount || ""} onChange={(e) => setForm({ ...form, discount: Number(e.target.value) })} />
+                <input className="input" placeholder="e.g. 0" min="0" type="number" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
               </div>
               <div className="field">
                 <label>Advance payment (Rs.)</label>
-                <input className="input" min="0" type="number" value={form.advancePayment || ""} onChange={(e) => setForm({ ...form, advancePayment: Number(e.target.value) })} />
+                <input className="input" placeholder="e.g. 0" min="0" type="number" value={form.advancePayment} onChange={(e) => setForm({ ...form, advancePayment: e.target.value })} />
               </div>
               <div className="field">
                 <label>Advance Received Into Wallet</label>
