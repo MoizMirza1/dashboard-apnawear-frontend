@@ -72,21 +72,11 @@ export default function OrdersPage() {
       setProducts(productData.products);
       setVariants(variantData.variants);
       setCampaigns(campaignData.campaigns);
-      setForm((current) => {
-        const product = productData.products.find((item) => item.id === current.productDesignId) ?? productData.products[0];
-        const variant = variantData.variants.find((item) => item.id === current.garmentVariantId) ?? variantData.variants[0];
-        return {
-          ...current,
-          productDesignId: product?.id ?? "",
-          garmentVariantId: variant?.id ?? "",
-          designName: current.designName,
-          unitSellingPrice: current.unitSellingPrice,
-          deliveryCharged: current.deliveryCharged,
-          perShirtPrintingCost: defaultPrinting,
-          printingPickup: defaultPickup,
-          printingCost: current.printingCost,
-        };
-      });
+      setForm((current) => ({
+        ...current,
+        perShirtPrintingCost: defaultPrinting,
+        printingPickup: defaultPickup,
+      }));
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
@@ -463,7 +453,7 @@ export default function OrdersPage() {
               </div>
               <div className="field">
                 <label>Delivery Charged (Rs.)</label>
-                <input className="input" placeholder="e.g. 300" min="0" type="number" value={form.deliveryCharged} onChange={(e) => setForm({ ...form, deliveryCharged: e.target.value })} />
+                <input className="input" placeholder="Leave This Box Empty If There is No Delivery Charges" min="0" type="number" value={form.deliveryCharged} onChange={(e) => setForm({ ...form, deliveryCharged: e.target.value })} />
               </div>
               <div className="field">
                 <label>Discount</label>
@@ -525,47 +515,64 @@ export default function OrdersPage() {
             <div className="calculation-list">
               <div>
                 <span>Design</span>
-                <strong>{form.designName || selectedProduct?.name || "Custom Graphic"}</strong>
+                <strong>{form.designName ? form.designName : "—"}</strong>
               </div>
               <div>
                 <span>SKU</span>
-                <strong>{selectedVariant?.sku ?? "—"}</strong>
+                <strong>{selectedVariant ? selectedVariant.sku : "—"}</strong>
               </div>
               <div>
                 <span>Available stock</span>
-                {selectedVariant && selectedVariant.availableQty < (Number(form.quantity) || 1) ? (
-                  <strong className="negative-text" style={{ fontWeight: "700" }}>
-                    {selectedVariant.availableQty} ❌ OUT OF STOCK
-                  </strong>
+                {selectedVariant ? (
+                  selectedVariant.availableQty < (Number(form.quantity) || 1) ? (
+                    <strong className="negative-text" style={{ fontWeight: "700" }}>
+                      {selectedVariant.availableQty} ❌ OUT OF STOCK
+                    </strong>
+                  ) : (
+                    <strong>{selectedVariant.availableQty} available</strong>
+                  )
                 ) : (
-                  <strong>{selectedVariant?.availableQty ?? 0} available</strong>
+                  <strong>—</strong>
                 )}
               </div>
               <div>
                 <span>Blank shirt cost</span>
-                <strong>{formatCurrency(projected.stockCost)}</strong>
+                <strong>{selectedVariant ? formatCurrency(projected.stockCost) : "—"}</strong>
               </div>
               <div>
                 <span>Printing cost</span>
-                <strong>{projected.printCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
+                <strong>{form.printingCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
               </div>
               <div>
                 <span>Pickup fee (Auto-split ⚡)</span>
-                <strong>{formatCurrency(projected.pickupCost)} <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small></strong>
+                {selectedVariant || form.designName || form.printingCost ? (
+                  <strong>
+                    {formatCurrency(projected.pickupCost)}{" "}
+                    <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small>
+                  </strong>
+                ) : (
+                  <strong>—</strong>
+                )}
               </div>
               <div>
                 <span>Delivery cost</span>
-                <strong>{formatCurrency(projected.courierCost)}</strong>
+                <strong>{form.deliveryCharged !== "" ? formatCurrency(Number(form.deliveryCharged)) : "—"}</strong>
               </div>
               <div>
                 <span>Expected revenue</span>
-                <strong>{formatCurrency(projected.revenue)}</strong>
+                <strong>{form.unitSellingPrice !== "" ? formatCurrency(projected.revenue) : "—"}</strong>
               </div>
               <div className="calculation-total" style={{ borderTop: "2px solid #e2e8f0", paddingTop: "8px", marginTop: "8px" }}>
                 <span>Expected Net Profit</span>
-                <strong className={projected.netProfit >= 0 ? "positive-text" : "negative-text"} style={{ fontSize: "1.15rem" }}>
-                  {formatCurrency(projected.netProfit)}
-                </strong>
+                {form.unitSellingPrice !== "" && form.printingCost !== "" && selectedVariant ? (
+                  <strong className={projected.netProfit >= 0 ? "positive-text" : "negative-text"} style={{ fontSize: "1.15rem" }}>
+                    {formatCurrency(projected.netProfit)}
+                  </strong>
+                ) : (
+                  <strong className="muted" style={{ fontSize: "0.85rem", fontWeight: "normal" }}>
+                    — (Fill order details above)
+                  </strong>
+                )}
               </div>
             </div>
           </aside>
