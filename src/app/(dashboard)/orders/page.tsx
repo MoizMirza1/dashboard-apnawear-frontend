@@ -50,6 +50,7 @@ export default function OrdersPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [quickFulfillingId, setQuickFulfillingId] = useState<string | null>(null);
+  const [rebalancingPickup, setRebalancingPickup] = useState(false);
 
   async function load() {
     try {
@@ -188,6 +189,23 @@ export default function OrdersPage() {
     }
   }
 
+  async function handleRebalancePickup() {
+    setRebalancingPickup(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await apiFetch<{ success: true; message: string }>("/orders/rebalance-pickup", {
+        method: "POST",
+      });
+      setMessage(res.message);
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setRebalancingPickup(false);
+    }
+  }
+
   function toggleSelectAll() {
     if (selectedOrderIds.length === orders.length) {
       setSelectedOrderIds([]);
@@ -298,7 +316,12 @@ export default function OrdersPage() {
           <h1>Orders & Automated Fulfillment</h1>
           <p className="muted">Create orders with custom designs, reserve FIFO stock, paste WhatsApp chats, and quick-fulfill orders in 1 click.</p>
         </div>
-        <span className="badge">{orders.length} ORDERS</span>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button className="button button-secondary compact-button" disabled={rebalancingPickup} onClick={handleRebalancePickup} type="button">
+            {rebalancingPickup ? "Splitting..." : "⚡ Auto-Split Today's Pickup Fee (50 RS ÷ Orders)"}
+          </button>
+          <span className="badge">{orders.length} ORDERS</span>
+        </div>
       </div>
 
       {error ? <div className="error-box page-message">{error}</div> : null}
@@ -404,17 +427,17 @@ export default function OrdersPage() {
                 />
               </div>
               <div className="field">
-                <label>Printing Pickup Fee (Rs.)</label>
+                <label>Printing Pickup Fee (Rs.) ⚡ Auto-Splits</label>
                 <input
                   className="input"
-                  placeholder="e.g. 50 (or 25 if 1 trip covers 2 orders)"
+                  placeholder="e.g. 50 (auto-splits 50 RS ÷ today's orders)"
                   min="0"
                   type="number"
                   value={form.printingPickup}
                   onChange={(e) => setForm({ ...form, printingPickup: Number(e.target.value) })}
                 />
                 <small className="field-help" style={{ color: "#64748b", fontSize: "0.75rem" }}>
-                  Tip: If 1 pickup trip collects 2 prints, set Rs. 25 on each order (or 0 for shared pickup).
+                  Auto-splits 50 RS total pickup trip fee equally across today's orders.
                 </small>
               </div>
               <div className="field">
