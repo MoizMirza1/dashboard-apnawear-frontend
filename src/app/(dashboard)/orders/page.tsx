@@ -101,7 +101,7 @@ export default function OrdersPage() {
     const pickupCost = Math.round((50 / Math.max(1, todayOrdersCount)) * 100) / 100;
     const courierCost = 300;
     const flyerCost = 20;
-    const totalCosts = stockCost + printCost + pickupCost + courierCost + flyerCost;
+    const totalCosts = stockCost + printCost + courierCost + flyerCost;
     const netProfit = revenue - totalCosts;
     return {
       revenue,
@@ -551,17 +551,6 @@ export default function OrdersPage() {
               <div>
                 <span>• Printing Cost</span>
                 <strong>{form.printingCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
-              </div>
-              <div>
-                <span>• Pickup Fee (Auto-split ⚡)</span>
-                {selectedVariant || form.designName || form.printingCost ? (
-                  <strong>
-                    {formatCurrency(projected.pickupCost)}{" "}
-                    <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small>
-                  </strong>
-                ) : (
-                  <strong>—</strong>
-                )}
               </div>
               <div>
                 <span>• Courier Delivery Expense</span>
