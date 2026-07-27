@@ -99,8 +99,14 @@ export default function OrdersPage() {
     const revenue = (Number(form.unitSellingPrice) || 0) * qty + (Number(form.deliveryCharged) || 0) - (Number(form.discount) || 0);
     const stockCost = (selectedVariant?.effectiveUnitCost ?? 560) * qty;
     const printCost = form.printingCost !== "" ? Number(form.printingCost) : 0;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const todayOrdersCount = orders.filter((o) => o.createdAt && o.createdAt.slice(0, 10) === todayStr).length + 1;
+    const now = new Date();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const todayOrdersCount = orders.filter((o) => {
+      if (!o.createdAt) return false;
+      const d = new Date(o.createdAt);
+      const localStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      return localStr === todayLocal && o.status !== "CANCELLED";
+    }).length + 1;
     const pickupCost = Number((50 / Math.max(1, todayOrdersCount)).toFixed(2));
     const courierCost = 300;
     const flyerCost = 20;
