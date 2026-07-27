@@ -536,15 +536,24 @@ export default function OrdersPage() {
                 )}
               </div>
               <div>
-                <span>Blank shirt cost</span>
+                <span>Expected Revenue</span>
+                <strong>{form.unitSellingPrice !== "" ? formatCurrency(projected.revenue) : "—"}</strong>
+              </div>
+
+              <div style={{ paddingTop: "10px", marginTop: "4px", borderTop: "1px solid #e2e8f0", fontWeight: "700", fontSize: "0.8rem", color: "#475569", letterSpacing: "0.03em" }}>
+                EXPENSE BREAKDOWN:
+              </div>
+
+              <div>
+                <span>• Blank Shirt Cost</span>
                 <strong>{selectedVariant ? formatCurrency(projected.stockCost) : "—"}</strong>
               </div>
               <div>
-                <span>Printing cost</span>
+                <span>• Printing Cost</span>
                 <strong>{form.printingCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
               </div>
               <div>
-                <span>Pickup fee (Auto-split ⚡)</span>
+                <span>• Pickup Fee (Auto-split ⚡)</span>
                 {selectedVariant || form.designName || form.printingCost ? (
                   <strong>
                     {formatCurrency(projected.pickupCost)}{" "}
@@ -555,13 +564,21 @@ export default function OrdersPage() {
                 )}
               </div>
               <div>
-                <span>Delivery cost</span>
-                <strong>{form.deliveryCharged !== "" ? formatCurrency(Number(form.deliveryCharged)) : "—"}</strong>
+                <span>• Courier Delivery Expense</span>
+                <strong>{formatCurrency(projected.courierCost)}</strong>
               </div>
               <div>
-                <span>Expected revenue</span>
-                <strong>{form.unitSellingPrice !== "" ? formatCurrency(projected.revenue) : "—"}</strong>
+                <span>• Flyer & Packaging Slip</span>
+                <strong>{formatCurrency(projected.flyerCost)}</strong>
               </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "8px", marginTop: "4px", borderTop: "1px dashed #cbd5e1", fontWeight: "600", fontSize: "0.85rem" }}>
+                <span>Total Direct Expenses</span>
+                <strong className="negative-text">
+                  {selectedVariant && form.printingCost !== "" ? formatCurrency(projected.totalCosts) : "—"}
+                </strong>
+              </div>
+
               <div className="calculation-total" style={{ borderTop: "2px solid #e2e8f0", paddingTop: "8px", marginTop: "8px" }}>
                 <span>Expected Net Profit</span>
                 {form.unitSellingPrice !== "" && form.printingCost !== "" && selectedVariant ? (
