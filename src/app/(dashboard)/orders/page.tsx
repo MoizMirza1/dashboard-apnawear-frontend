@@ -604,7 +604,9 @@ export default function OrdersPage() {
                     <input checked={tripOrderIds.includes(o.id)} type="checkbox" onChange={() => toggleTripOrderSelect(o.id)} />
                     <strong>{o.orderNumber}</strong>
                   </span>
-                  <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{o.customer.name.split(" ")[0]}</span>
+                  <span style={{ fontSize: "0.75rem", color: o.costs?.printingPickup ? "#16a34a" : "#64748b", fontWeight: o.costs?.printingPickup ? "600" : "normal" }}>
+                    {o.costs?.printingPickup ? `✅ Pickup Rs. ${o.costs.printingPickup}` : o.customer.name.split(" ")[0]}
+                  </span>
                 </label>
               ))}
               {!activeTripOrders.length ? <div className="muted" style={{ padding: "8px", textAlign: "center", fontSize: "0.8rem" }}>No active orders available.</div> : null}
