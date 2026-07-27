@@ -44,13 +44,16 @@ export default function OrdersPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  // Automation state
+  // Automation & Trip state
   const [chatText, setChatText] = useState("");
   const [parsing, setParsing] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [quickFulfillingId, setQuickFulfillingId] = useState<string | null>(null);
-  const [rebalancingPickup, setRebalancingPickup] = useState(false);
+
+  // 🛵 Market Trip Widget State on Right Column
+  const [tripOrderIds, setTripOrderIds] = useState<string[]>([]);
+  const [savingTrip, setSavingTrip] = useState(false);
 
   async function load() {
     try {
@@ -190,22 +193,52 @@ export default function OrdersPage() {
     }
   }
 
-  async function handleRebalancePickup() {
-    setRebalancingPickup(true);
+  async function handleApply50RsTrip() {
+    if (!tripOrderIds.length) {
+      setError("Please select at least 1 order using the checkboxes to apply the 50 RS pickup trip!");
+      return;
+    }
+    setSavingTrip(true);
     setError("");
     setMessage("");
     try {
-      const res = await apiFetch<{ success: true; message: string }>("/orders/rebalance-pickup", {
+      const result = await apiFetch<{ success: true; message: string }>("/market-trips", {
         method: "POST",
+        body: JSON.stringify({
+          tripDate: new Date().toISOString().slice(0, 10),
+          riderName: "Market Trip Rider",
+          fuelExpense: 50,
+          otherExpense: 0,
+          orderIds: tripOrderIds,
+          notes: `Fixed 50 RS trip split across ${tripOrderIds.length} orders`,
+        }),
       });
-      setMessage(res.message);
+      setMessage(result.message);
+      setTripOrderIds([]);
       await load();
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setRebalancingPickup(false);
+      setSavingTrip(false);
     }
   }
+
+  function toggleTripOrderSelect(id: string) {
+    setTripOrderIds((curr) => (curr.includes(id) ? curr.filter((oId) => oId !== id) : [...curr, id]));
+  }
+
+  function toggleSelectAllTripOrders() {
+    const activeIds = activeTripOrders.map((o) => o.id);
+    if (tripOrderIds.length === activeIds.length) {
+      setTripOrderIds([]);
+    } else {
+      setTripOrderIds(activeIds);
+    }
+  }
+
+  const activeTripOrders = orders.filter((o) => !["CANCELLED", "COMPLETED", "RETURNED", "RTO"].includes(o.status));
+  const tripCount = tripOrderIds.length;
+  const tripSplitCostText = tripCount > 0 ? (50 / tripCount).toFixed(2) : "50.00";
 
   function toggleSelectAll() {
     if (selectedOrderIds.length === orders.length) {
@@ -323,12 +356,7 @@ export default function OrdersPage() {
           <h1>Orders & Automated Fulfillment</h1>
           <p className="muted">Create orders with custom designs, reserve FIFO stock, paste WhatsApp chats, and quick-fulfill orders in 1 click.</p>
         </div>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <button className="button button-secondary compact-button" disabled={rebalancingPickup} onClick={handleRebalancePickup} type="button">
-            {rebalancingPickup ? "Splitting..." : "⚡ Auto-Split Today's Pickup Fee (50 RS ÷ Orders)"}
-          </button>
-          <span className="badge">{orders.length} ORDERS</span>
-        </div>
+        <span className="badge">{orders.length} ORDERS</span>
       </div>
 
       {error ? <div className="error-box page-message">{error}</div> : null}
@@ -489,55 +517,103 @@ export default function OrdersPage() {
             </div>
           </form>
         </article>
-        <aside className="card card-padding calculation-card">
-          <h2 className="section-title">Order preview</h2>
-          <div className="calculation-list">
-            <div>
-              <span>Design</span>
-              <strong>{form.designName || selectedProduct?.name || "Custom Graphic"}</strong>
-            </div>
-            <div>
-              <span>SKU</span>
-              <strong>{selectedVariant?.sku ?? "—"}</strong>
-            </div>
-            <div>
-              <span>Available stock</span>
-              {selectedVariant && selectedVariant.availableQty < (Number(form.quantity) || 1) ? (
-                <strong className="negative-text" style={{ fontWeight: "700" }}>
-                  {selectedVariant.availableQty} ❌ OUT OF STOCK
+
+        {/* RIGHT COLUMN: ORDER PREVIEW + 🛵 50 RS MARKET PICKUP TRIP ALLOCATOR */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "96px", height: "fit-content" }}>
+          <aside className="card card-padding calculation-card" style={{ position: "static" }}>
+            <h2 className="section-title">Order preview</h2>
+            <div className="calculation-list">
+              <div>
+                <span>Design</span>
+                <strong>{form.designName || selectedProduct?.name || "Custom Graphic"}</strong>
+              </div>
+              <div>
+                <span>SKU</span>
+                <strong>{selectedVariant?.sku ?? "—"}</strong>
+              </div>
+              <div>
+                <span>Available stock</span>
+                {selectedVariant && selectedVariant.availableQty < (Number(form.quantity) || 1) ? (
+                  <strong className="negative-text" style={{ fontWeight: "700" }}>
+                    {selectedVariant.availableQty} ❌ OUT OF STOCK
+                  </strong>
+                ) : (
+                  <strong>{selectedVariant?.availableQty ?? 0} available</strong>
+                )}
+              </div>
+              <div>
+                <span>Blank shirt cost</span>
+                <strong>{formatCurrency(projected.stockCost)}</strong>
+              </div>
+              <div>
+                <span>Printing cost</span>
+                <strong>{projected.printCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
+              </div>
+              <div>
+                <span>Pickup fee (Auto-split ⚡)</span>
+                <strong>{formatCurrency(projected.pickupCost)} <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small></strong>
+              </div>
+              <div>
+                <span>Delivery cost</span>
+                <strong>{formatCurrency(projected.courierCost)}</strong>
+              </div>
+              <div>
+                <span>Expected revenue</span>
+                <strong>{formatCurrency(projected.revenue)}</strong>
+              </div>
+              <div className="calculation-total" style={{ borderTop: "2px solid #e2e8f0", paddingTop: "8px", marginTop: "8px" }}>
+                <span>Expected Net Profit</span>
+                <strong className={projected.netProfit >= 0 ? "positive-text" : "negative-text"} style={{ fontSize: "1.15rem" }}>
+                  {formatCurrency(projected.netProfit)}
                 </strong>
-              ) : (
-                <strong>{selectedVariant?.availableQty ?? 0} available</strong>
-              )}
+              </div>
             </div>
-            <div>
-              <span>Blank shirt cost</span>
-              <strong>{formatCurrency(projected.stockCost)}</strong>
+          </aside>
+
+          {/* 🛵 50 RS MARKET PICKUP TRIP ALLOCATOR CARD (RIGHT SIDE BOTTOM UNDER PREVIEW) */}
+          <article className="card card-padding" style={{ borderLeft: "4px solid #f97316", backgroundColor: "rgba(249, 115, 22, 0.03)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+              <h2 className="section-title" style={{ margin: 0, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>🛵 50 RS Pickup Trip Allocator</span>
+              </h2>
+              <span className="badge" style={{ backgroundColor: "#f97316", color: "#fff", fontSize: "0.7rem" }}>FIXED 50 RS</span>
             </div>
-            <div>
-              <span>Printing cost</span>
-              <strong>{projected.printCost ? formatCurrency(projected.printCost) : "⚠️ Enter printing cost"}</strong>
+            <p className="section-copy" style={{ margin: "0 0 10px 0", fontSize: "0.8rem", color: "#64748b" }}>
+              Select orders below to split 50 RS fuel cost equally (e.g. 50 RS ÷ {tripCount || 1} = Rs. {tripSplitCostText} / order).
+            </p>
+
+            <div style={{ maxHeight: "160px", overflowY: "auto", border: "1px solid #cbd5e1", borderRadius: "8px", backgroundColor: "#fff", padding: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", paddingBottom: "4px", marginBottom: "4px", fontSize: "0.75rem", fontWeight: "700" }}>
+                <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <input checked={tripOrderIds.length === activeTripOrders.length && activeTripOrders.length > 0} type="checkbox" onChange={toggleSelectAllTripOrders} />
+                  <span>Select All ({activeTripOrders.length})</span>
+                </label>
+                <span style={{ color: "#c2410c" }}>{tripOrderIds.length} Selected</span>
+              </div>
+
+              {activeTripOrders.map((o) => (
+                <label key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px", cursor: "pointer", fontSize: "0.8rem", borderRadius: "4px", backgroundColor: tripOrderIds.includes(o.id) ? "#fff7ed" : "transparent" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <input checked={tripOrderIds.includes(o.id)} type="checkbox" onChange={() => toggleTripOrderSelect(o.id)} />
+                    <strong>{o.orderNumber}</strong>
+                  </span>
+                  <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{o.customer.name.split(" ")[0]}</span>
+                </label>
+              ))}
+              {!activeTripOrders.length ? <div className="muted" style={{ padding: "8px", textAlign: "center", fontSize: "0.8rem" }}>No active orders available.</div> : null}
             </div>
-            <div>
-              <span>Pickup fee (Auto-split ⚡)</span>
-              <strong>{formatCurrency(projected.pickupCost)} <small style={{ fontWeight: "normal", color: "#64748b" }}>(50 RS ÷ {projected.todayOrdersCount})</small></strong>
-            </div>
-            <div>
-              <span>Delivery cost</span>
-              <strong>{formatCurrency(projected.courierCost)}</strong>
-            </div>
-            <div>
-              <span>Expected revenue</span>
-              <strong>{formatCurrency(projected.revenue)}</strong>
-            </div>
-            <div className="calculation-total" style={{ borderTop: "2px solid #e2e8f0", paddingTop: "8px", marginTop: "8px" }}>
-              <span>Expected Net Profit</span>
-              <strong className={projected.netProfit >= 0 ? "positive-text" : "negative-text"} style={{ fontSize: "1.15rem" }}>
-                {formatCurrency(projected.netProfit)}
-              </strong>
-            </div>
-          </div>
-        </aside>
+
+            <button
+              className="button"
+              disabled={savingTrip || !tripOrderIds.length}
+              onClick={handleApply50RsTrip}
+              style={{ backgroundColor: "#f97316", borderColor: "#f97316", color: "#fff", fontSize: "0.85rem", width: "100%", marginTop: "10px" }}
+              type="button"
+            >
+              {savingTrip ? "Applying..." : `🛵 Apply 50 RS Trip (${tripOrderIds.length} Orders Selected)`}
+            </button>
+          </article>
+        </div>
       </section>
 
       {/* BULK SELECTION TOOLBAR */}
