@@ -110,6 +110,9 @@ export default function OrdersPage() {
         body: JSON.stringify({ text: chatText }),
       });
       const p = res.parsed;
+      const matchingVariant = variants.find((v) =>
+        p.size ? v.size.toLowerCase() === p.size.toLowerCase() || v.sku.toLowerCase().includes(p.size.toLowerCase()) : false
+      );
       setForm((current) => ({
         ...current,
         customerName: p.name || current.customerName,
@@ -118,7 +121,10 @@ export default function OrdersPage() {
         city: p.city || current.city,
         address: p.address || current.address,
         designName: p.designName || current.designName || "Custom Graphic Print",
-        unitSellingPrice: p.codAmount > 0 ? p.codAmount : current.unitSellingPrice,
+        garmentVariantId: matchingVariant?.id || current.garmentVariantId,
+        quantity: p.quantity || current.quantity,
+        unitSellingPrice: p.unitSellingPrice || current.unitSellingPrice,
+        advancePayment: p.advancePayment ?? current.advancePayment,
       }));
       setMessage("📋 Chat message parsed & custom design form auto-filled successfully!");
     } catch (err: any) {
