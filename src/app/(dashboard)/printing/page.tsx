@@ -6,15 +6,14 @@ import { apiFetch } from "@/lib/api";
 import { formatCurrency, formatDate, labelize } from "@/lib/format";
 import type { MarketTrip, Order, PrintingJob } from "@/types";
 
-const initialForm = { orderId: "", printerName: "", printingCost: 400, pickupCost: 0, sentAt: new Date().toISOString().slice(0, 10), dueAt: "", notes: "" };
-const initialTripForm = { tripDate: new Date().toISOString().slice(0, 10), riderName: "Self / Rider", fuelExpense: 120, otherExpense: 0, selectedOrderIds: [] as string[], notes: "" };
+const initialForm = { orderId: "", printerName: "In-House Printer", printingCost: 400, sentAt: new Date().toISOString().slice(0, 10), dueAt: "", notes: "" };
 
 export default function PrintingPage() {
   const [jobs, setJobs] = useState<PrintingJob[]>([]);
   const [trips, setTrips] = useState<MarketTrip[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [form, setForm] = useState(initialForm);
-  const [tripForm, setTripForm] = useState(initialTripForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingTrip, setSavingTrip] = useState(false);
@@ -56,7 +55,7 @@ export default function PrintingPage() {
         body: JSON.stringify({
           ...form,
           printingCost: Number(form.printingCost) || 0,
-          pickupCost: Number(form.pickupCost) || 0,
+          pickupCost: 0,
           sentAt: form.sentAt || undefined,
           dueAt: form.dueAt || undefined,
         }),
@@ -71,10 +70,9 @@ export default function PrintingPage() {
     }
   }
 
-  async function submitTrip(event: FormEvent) {
-    event.preventDefault();
-    if (!tripForm.selectedOrderIds.length) {
-      setError("Please select at least 1 order for this market pickup trip!");
+  async function handleApply50RsTrip() {
+    if (!selectedOrderIds.length) {
+      setError("Please select at least 1 order using the checkboxes to apply the 50 RS pickup trip!");
       return;
     }
     setSavingTrip(true);
@@ -84,16 +82,16 @@ export default function PrintingPage() {
       const result = await apiFetch<{ success: true; message: string }>("/market-trips", {
         method: "POST",
         body: JSON.stringify({
-          tripDate: tripForm.tripDate,
-          riderName: tripForm.riderName,
-          fuelExpense: Number(tripForm.fuelExpense) || 0,
-          otherExpense: Number(tripForm.otherExpense) || 0,
-          orderIds: tripForm.selectedOrderIds,
-          notes: tripForm.notes,
+          tripDate: new Date().toISOString().slice(0, 10),
+          riderName: "Market Trip Rider",
+          fuelExpense: 50,
+          otherExpense: 0,
+          orderIds: selectedOrderIds,
+          notes: `Fixed 50 RS trip split across ${selectedOrderIds.length} orders`,
         }),
       });
       setMessage(result.message);
-      setTripForm(initialTripForm);
+      setSelectedOrderIds([]);
       await load();
     } catch (requestError) {
       setError((requestError as Error).message);
@@ -112,19 +110,22 @@ export default function PrintingPage() {
     }
   }
 
-  function toggleOrderForTrip(id: string) {
-    setTripForm((curr) => {
-      const exists = curr.selectedOrderIds.includes(id);
-      const next = exists ? curr.selectedOrderIds.filter((oId) => oId !== id) : [...curr.selectedOrderIds, id];
-      return { ...curr, selectedOrderIds: next };
-    });
+  function toggleOrderSelect(id: string) {
+    setSelectedOrderIds((curr) => (curr.includes(id) ? curr.filter((oId) => oId !== id) : [...curr, id]));
+  }
+
+  function toggleSelectAllForTrip() {
+    const activeIds = activeOrdersForTrip.map((o) => o.id);
+    if (selectedOrderIds.length === activeIds.length) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(activeIds);
+    }
   }
 
   const activeOrdersForTrip = allOrders.filter((o) => !["CANCELLED", "COMPLETED", "RETURNED", "RTO"].includes(o.status));
-
-  const totalFuel = (Number(tripForm.fuelExpense) || 0) + (Number(tripForm.otherExpense) || 0);
-  const orderCount = tripForm.selectedOrderIds.length;
-  const perOrderSplit = orderCount > 0 ? (totalFuel / orderCount).toFixed(2) : "0.00";
+  const count = selectedOrderIds.length;
+  const splitCostText = count > 0 ? (50 / count).toFixed(2) : "50.00";
 
   if (loading) return <LoadingScreen message="Loading printing & market trips..." />;
 
@@ -132,8 +133,8 @@ export default function PrintingPage() {
     <main className="page">
       <div className="page-header">
         <div>
-          <h1>Printing Jobs & Market Trips</h1>
-          <p className="muted">Log print jobs, create market pickup runs, and auto-split actual fuel expenses across orders.</p>
+          <h1>Printing Jobs & Fixed 50 RS Pickup Trip Allocator</h1>
+          <p className="muted">Select orders using checkboxes and click the single button to split 50 RS pickup cost equally.</p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <span className="badge">{jobs.length} PRINT JOBS</span>
@@ -144,63 +145,55 @@ export default function PrintingPage() {
       {error ? <div className="error-box page-message">{error}</div> : null}
       {message ? <div className="success-box page-message">{message}</div> : null}
 
-      <div className="split-layout">
-        {/* 🛵 MARKET TRIP LOGGER CARD */}
-        <article className="card card-padding" style={{ borderLeft: "4px solid #f97316" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <h2 className="section-title" style={{ margin: 0 }}>🛵 Log Market Pickup Trip (Idea 1)</h2>
-            <span className="badge" style={{ backgroundColor: "#f97316", color: "#fff" }}>AUTO-SPLIT FUEL</span>
+      {/* 🛵 SINGLE-BUTTON 50 RS PICKUP TRIP ALLOCATOR */}
+      <section className="card card-padding" style={{ marginBottom: "20px", borderLeft: "4px solid #f97316", backgroundColor: "rgba(249, 115, 22, 0.03)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+          <div>
+            <h2 className="section-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>🛵 50 RS Market Pickup Trip Allocator</span>
+              <span className="badge" style={{ backgroundColor: "#f97316", color: "#fff" }}>FIXED 50 RS</span>
+            </h2>
+            <p className="section-copy" style={{ margin: "4px 0 0 0" }}>
+              Select orders below with checkboxes to split 50 RS fuel cost equally (e.g. 50 RS ÷ {count || 1} = Rs. {splitCostText} per order).
+            </p>
           </div>
-          <form className="form" onSubmit={submitTrip}>
-            <div className="two-column-form">
-              <div className="field">
-                <label>Trip Date</label>
-                <input className="input" type="date" value={tripForm.tripDate} onChange={(e) => setTripForm({ ...tripForm, tripDate: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Rider / Carrier Name</label>
-                <input className="input" value={tripForm.riderName} onChange={(e) => setTripForm({ ...tripForm, riderName: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Fuel / Petrol Expense (Rs.)</label>
-                <input className="input" min="0" type="number" value={tripForm.fuelExpense || ""} onChange={(e) => setTripForm({ ...tripForm, fuelExpense: Number(e.target.value) })} />
-              </div>
-              <div className="field">
-                <label>Other Trip Expenses (Rs.)</label>
-                <input className="input" min="0" type="number" value={tripForm.otherExpense || ""} onChange={(e) => setTripForm({ ...tripForm, otherExpense: Number(e.target.value) })} />
-              </div>
-            </div>
+          <button
+            className="button"
+            disabled={savingTrip || !count}
+            onClick={handleApply50RsTrip}
+            style={{ backgroundColor: "#f97316", borderColor: "#f97316", color: "#fff", fontSize: "0.95rem", padding: "10px 20px" }}
+            type="button"
+          >
+            {savingTrip ? "Applying..." : `🛵 Apply 50 RS Pickup Trip (${count} Orders Selected)`}
+          </button>
+        </div>
 
-            <div className="field top-gap">
-              <label>Select Orders Picked Up on This Trip ({orderCount} selected)</label>
-              <div style={{ maxHeight: "140px", overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "8px" }}>
-                {activeOrdersForTrip.map((o) => (
-                  <label key={o.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 0", cursor: "pointer", fontSize: "0.85rem" }}>
-                    <input checked={tripForm.selectedOrderIds.includes(o.id)} type="checkbox" onChange={() => toggleOrderForTrip(o.id)} />
-                    <strong>{o.orderNumber}</strong> · {o.customer.name} ({formatCurrency(o.revenue)})
-                  </label>
-                ))}
-                {!activeOrdersForTrip.length ? <div className="muted" style={{ fontSize: "0.85rem" }}>No active orders available.</div> : null}
-              </div>
-            </div>
+        {/* Checkbox Order Selector Table */}
+        <div style={{ maxHeight: "200px", overflowY: "auto", border: "1px solid #cbd5e1", borderRadius: "8px", backgroundColor: "#fff", padding: "8px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", marginBottom: "6px", fontSize: "0.85rem", fontWeight: "700" }}>
+            <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+              <input checked={selectedOrderIds.length === activeOrdersForTrip.length && activeOrdersForTrip.length > 0} type="checkbox" onChange={toggleSelectAllForTrip} />
+              <span>Select All Orders for Pickup Trip</span>
+            </label>
+            <span style={{ color: "#c2410c" }}>Current Split: Rs. {splitCostText} / order</span>
+          </div>
 
-            {/* Split Preview Banner */}
-            <div style={{ marginTop: "12px", backgroundColor: "#fff7ed", padding: "10px 14px", borderRadius: "8px", border: "1px solid #ffedd5" }}>
-              <span style={{ fontSize: "0.85rem", color: "#c2410c", fontWeight: "600" }}>
-                ⚡ Auto-Split Calculation: Total Rs. {totalFuel} ÷ {orderCount} orders = <strong style={{ fontSize: "1rem" }}>Rs. {perOrderSplit}</strong> per order
+          {activeOrdersForTrip.map((o) => (
+            <label key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", cursor: "pointer", fontSize: "0.875rem", borderRadius: "4px", backgroundColor: selectedOrderIds.includes(o.id) ? "#fff7ed" : "transparent" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input checked={selectedOrderIds.includes(o.id)} type="checkbox" onChange={() => toggleOrderSelect(o.id)} />
+                <strong>{o.orderNumber}</strong> — {o.customer.name} ({o.customer.city})
               </span>
-            </div>
+              <span className="badge">{labelize(o.status)}</span>
+            </label>
+          ))}
+          {!activeOrdersForTrip.length ? <div className="muted" style={{ padding: "12px", textAlign: "center" }}>No active orders available for pickup.</div> : null}
+        </div>
+      </section>
 
-            <div className="actions-row">
-              <button className="button" disabled={savingTrip || !orderCount} style={{ backgroundColor: "#f97316", borderColor: "#f97316", color: "#fff" }}>
-                {savingTrip ? "Logging..." : "🛵 Log Trip & Apply Split Pickup Fee"}
-              </button>
-            </div>
-          </form>
-        </article>
-
+      <div className="split-layout">
         {/* 🖨️ PRINT JOB FORM CARD */}
-        <article className="card card-padding">
+        <article className="card card-padding" style={{ flex: 1 }}>
           <h2 className="section-title">🖨️ Create Individual Printing Job</h2>
           <form className="form" onSubmit={submitJob}>
             <div className="field">
@@ -223,14 +216,6 @@ export default function PrintingPage() {
                 <label>Printing Cost Total (Rs.)</label>
                 <input className="input" min="0" type="number" value={form.printingCost || ""} onChange={(e) => setForm({ ...form, printingCost: Number(e.target.value) })} />
               </div>
-              <div className="field">
-                <label>Sent Date</label>
-                <input className="input" type="date" value={form.sentAt} onChange={(e) => setForm({ ...form, sentAt: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Due Date</label>
-                <input className="input" type="date" value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} />
-              </div>
             </div>
             <div className="actions-row">
               <button className="button" disabled={saving || !allOrders.length}>
@@ -244,7 +229,7 @@ export default function PrintingPage() {
       {/* 🛵 MARKET TRIPS HISTORY TABLE */}
       <section className="card users-table-card top-gap">
         <div className="card-padding">
-          <h2 className="section-title">🛵 Logged Market Trips</h2>
+          <h2 className="section-title">🛵 Logged 50 RS Pickup Trips</h2>
         </div>
         <div className="table-wrap">
           <table className="table">
@@ -252,10 +237,9 @@ export default function PrintingPage() {
               <tr>
                 <th>Trip #</th>
                 <th>Date</th>
-                <th>Rider</th>
-                <th>Total Fuel Expense</th>
+                <th>Trip Expense</th>
                 <th>Orders Count</th>
-                <th>Split Pickup Cost / Order</th>
+                <th>Value Added Per Order</th>
                 <th>Orders Included</th>
               </tr>
             </thead>
@@ -264,7 +248,6 @@ export default function PrintingPage() {
                 <tr key={trip.id}>
                   <td className="code-text">{trip.tripNumber}</td>
                   <td>{formatDate(trip.tripDate)}</td>
-                  <td>{trip.riderName}</td>
                   <td className="negative-text">
                     <strong>{formatCurrency(trip.totalTripCost)}</strong>
                   </td>
@@ -272,15 +255,15 @@ export default function PrintingPage() {
                     <span className="badge">{trip.orders.length} orders</span>
                   </td>
                   <td className="positive-text">
-                    <strong>{formatCurrency(trip.perOrderPickupCost)} / order</strong>
+                    <strong>{formatCurrency(trip.perOrderPickupCost)} added per order</strong>
                   </td>
                   <td>{trip.orders.map((o) => o.orderNumber).join(", ")}</td>
                 </tr>
               ))}
               {!trips.length ? (
                 <tr>
-                  <td className="empty-state" colSpan={7}>
-                    No market trips logged yet.
+                  <td className="empty-state" colSpan={6}>
+                    No market trips logged yet. Select orders above to log a 50 RS trip!
                   </td>
                 </tr>
               ) : null}
