@@ -92,7 +92,7 @@ export default function OrdersPage() {
   }, []);
 
   const selectedVariant = variants.find((item) => item.id === form.garmentVariantId);
-  const selectedProduct = products.find((item) => item.id === form.productDesignId);
+  const selectedProduct = products.find((item) => item.id === form.productDesignId || (form.designName && item.name.toLowerCase().includes(form.designName.toLowerCase())));
 
   const projected = useMemo(() => {
     const qty = Number(form.quantity) || 1;
@@ -260,6 +260,41 @@ export default function OrdersPage() {
       const res = await apiFetch<{ success: true; message: string }>("/orders/bulk-status", {
         method: "POST",
         body: JSON.stringify({ orderIds: selectedOrderIds, targetStatus }),
+      });
+      setMessage(res.message);
+      setSelectedOrderIds([]);
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBulkProcessing(false);
+    }
+  }
+
+  async function handleDeleteOrder(orderId: string, orderNumber: string) {
+    if (!window.confirm(`Are you sure you want to delete order ${orderNumber}? Reserved stock will be restored.`)) return;
+    setError("");
+    setMessage("");
+    try {
+      const res = await apiFetch<{ success: true; message: string }>(`/orders/${orderId}`, { method: "DELETE" });
+      setMessage(res.message);
+      setSelectedOrderIds((curr) => curr.filter((id) => id !== orderId));
+      await load();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedOrderIds.length) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedOrderIds.length} selected order(s)? Reserved stock will be restored.`)) return;
+    setBulkProcessing(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await apiFetch<{ success: true; message: string }>("/orders/bulk-delete", {
+        method: "POST",
+        body: JSON.stringify({ orderIds: selectedOrderIds }),
       });
       setMessage(res.message);
       setSelectedOrderIds([]);
@@ -465,7 +500,7 @@ export default function OrdersPage() {
               </div>
               <div className="field">
                 <label>Delivery Charged (Rs.)</label>
-                <input className="input" placeholder="Leave This Box Empty If There is No Delivery Charges" min="0" type="number" value={form.deliveryCharged} onChange={(e) => setForm({ ...form, deliveryCharged: e.target.value })} />
+                <input className="input" placeholder="Leave empty if no delivery charge (e.g. 200)" min="0" type="number" value={form.deliveryCharged} onChange={(e) => setForm({ ...form, deliveryCharged: e.target.value })} />
               </div>
               <div className="field">
                 <label>Discount</label>
@@ -527,7 +562,7 @@ export default function OrdersPage() {
             <div className="calculation-list">
               <div>
                 <span>Design</span>
-                <strong>{form.designName ? form.designName : "—"}</strong>
+                <strong>{form.designName || selectedProduct?.name || (selectedVariant ? `${selectedVariant.color} ${selectedVariant.garmentType}` : "—")}</strong>
               </div>
               <div>
                 <span>SKU</span>
@@ -668,6 +703,9 @@ export default function OrdersPage() {
                 {labelize(st)}
               </button>
             ))}
+            <button className="button compact-button" disabled={bulkProcessing} onClick={() => void handleBulkDelete()} style={{ backgroundColor: "#ef4444", borderColor: "#ef4444", color: "#fff" }} type="button">
+              🗑️ Delete Selected ({selectedOrderIds.length})
+            </button>
             <button className="button compact-button" onClick={() => setSelectedOrderIds([])} type="button">
               Clear
             </button>
@@ -723,7 +761,7 @@ export default function OrdersPage() {
                   </td>
                   <td>{labelize(order.paymentStatus)}</td>
                   <td>
-                    <div style={{ display: "flex", gap: "6px" }}>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                       <button
                         className="button compact-button"
                         disabled={quickFulfillingId === order.id || ["SHIPPED", "DELIVERED", "COMPLETED", "CANCELLED", "RETURNED"].includes(order.status)}
@@ -740,6 +778,15 @@ export default function OrdersPage() {
                           </option>
                         ))}
                       </select>
+                      <button
+                        className="button compact-button"
+                        onClick={() => void handleDeleteOrder(order.id, order.orderNumber)}
+                        style={{ backgroundColor: "#ef4444", borderColor: "#ef4444", color: "#fff", padding: "4px 8px" }}
+                        title="Delete Order & Restore Stock"
+                        type="button"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </td>
                 </tr>
