@@ -26,6 +26,7 @@ export type BusinessSettings = {
     dropShoulderBlankCost: number;
     regularSellingPrice: number;
     dropShoulderSellingPrice: number;
+    defaultPrintingCost?: number;
     courier: number;
     flyer: number;
     flyerLabel: number;
@@ -179,6 +180,7 @@ export type Order = {
   revenue: number;
   costs: { inventory: number; printing: number; printingPickup: number; flyer: number; label: number; courier: number; returnCost: number; other: number; adAllocation: number };
   directCost: number;
+  profit: number;
   profitBeforeAds: number;
   profitAfterAds: number;
   status: OrderStatus;
@@ -202,6 +204,20 @@ export type PrintingJob = {
   notes: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type MarketTrip = {
+  id: string;
+  tripNumber: string;
+  tripDate: string;
+  riderName: string;
+  fuelExpense: number;
+  otherExpense: number;
+  totalTripCost: number;
+  orders: Array<{ id: string; orderNumber: string; customer: { name: string }; status: string; revenue: number }>;
+  perOrderPickupCost: number;
+  notes: string;
+  createdAt: string;
 };
 
 export type Shipment = {
