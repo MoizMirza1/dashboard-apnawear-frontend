@@ -211,15 +211,18 @@ export default function PrintingPage() {
             <span style={{ color: "#c2410c" }}>Current Split: Rs. {splitCostText} / order</span>
           </div>
 
-          {activeOrdersForTrip.map((o) => (
-            <label key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", cursor: "pointer", fontSize: "0.875rem", borderRadius: "4px", backgroundColor: selectedOrderIds.includes(o.id) ? "#fff7ed" : "transparent" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <input checked={selectedOrderIds.includes(o.id)} type="checkbox" onChange={() => toggleOrderSelect(o.id)} />
-                <strong>{o.orderNumber}</strong> — {o.customer.name} ({o.customer.city})
-              </span>
-              <span className="badge">{labelize(o.status)}</span>
-            </label>
-          ))}
+          {activeOrdersForTrip.map((o) => {
+            const designNames = o.items?.map((item) => item.designName || item.sku).join(", ") || "Custom Tee";
+            return (
+              <label key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", cursor: "pointer", fontSize: "0.875rem", borderRadius: "4px", backgroundColor: selectedOrderIds.includes(o.id) ? "#fff7ed" : "transparent" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input checked={selectedOrderIds.includes(o.id)} type="checkbox" onChange={() => toggleOrderSelect(o.id)} />
+                  <strong style={{ color: "#0f172a" }}>{designNames}</strong> — {o.customer.name} ({o.customer.city})
+                </span>
+                <span className="badge">{labelize(o.status)}</span>
+              </label>
+            );
+          })}
           {!activeOrdersForTrip.length ? <div className="muted" style={{ padding: "12px", textAlign: "center" }}>No active orders available for pickup.</div> : null}
         </div>
       </section>
