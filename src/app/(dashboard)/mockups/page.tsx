@@ -11,16 +11,56 @@ type ShirtPreset = {
   colorHex: string;
   viewSide: "FRONT" | "BACK";
   isDark: boolean;
+  imageSrc: string;
+  printBox: { x: number; y: number; w: number; h: number };
 };
 
 const shirtPresets: ShirtPreset[] = [
-  { id: "black-front", name: "Black Shirt (Front)", colorHex: "#18181b", viewSide: "FRONT", isDark: true },
-  { id: "black-back", name: "Black Shirt (Back)", colorHex: "#18181b", viewSide: "BACK", isDark: true },
-  { id: "white-front", name: "White Shirt (Front)", colorHex: "#f8fafc", viewSide: "FRONT", isDark: false },
-  { id: "white-back", name: "White Shirt (Back)", colorHex: "#f8fafc", viewSide: "BACK", isDark: false },
-  { id: "navy-front", name: "Navy Blue (Front)", colorHex: "#0f172a", viewSide: "FRONT", isDark: true },
-  { id: "grey-front", name: "Heather Grey (Front)", colorHex: "#94a3b8", viewSide: "FRONT", isDark: false },
-  { id: "olive-front", name: "Olive Green (Front)", colorHex: "#3f6212", viewSide: "FRONT", isDark: true },
+  {
+    id: "black-hanger",
+    name: "Black Shirt (Hanger)",
+    colorHex: "#18181b",
+    viewSide: "FRONT",
+    isDark: true,
+    imageSrc: "/mockups/black-hanger.jpg",
+    printBox: { x: 0.32, y: 0.35, w: 0.36, h: 0.44 },
+  },
+  {
+    id: "white-hanger",
+    name: "White Shirt (Hanger)",
+    colorHex: "#f8fafc",
+    viewSide: "FRONT",
+    isDark: false,
+    imageSrc: "/mockups/white-hanger.jpg",
+    printBox: { x: 0.32, y: 0.35, w: 0.36, h: 0.44 },
+  },
+  {
+    id: "black-dropshoulder-front",
+    name: "Black Drop Shoulder (Front)",
+    colorHex: "#18181b",
+    viewSide: "FRONT",
+    isDark: true,
+    imageSrc: "/mockups/black-dropshoulder-front.png",
+    printBox: { x: 0.26, y: 0.24, w: 0.48, h: 0.54 },
+  },
+  {
+    id: "black-dropshoulder-back",
+    name: "Black Drop Shoulder (Back)",
+    colorHex: "#18181b",
+    viewSide: "BACK",
+    isDark: true,
+    imageSrc: "/mockups/black-dropshoulder-back.png",
+    printBox: { x: 0.26, y: 0.20, w: 0.48, h: 0.58 },
+  },
+  {
+    id: "black-longsleeve",
+    name: "Black Long Sleeve (Hanger)",
+    colorHex: "#18181b",
+    viewSide: "FRONT",
+    isDark: true,
+    imageSrc: "/mockups/black-longsleeve.jpg",
+    printBox: { x: 0.32, y: 0.24, w: 0.36, h: 0.52 },
+  },
 ];
 
 type BlendMode = "normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-burn" | "hard-light" | "difference";
@@ -71,6 +111,18 @@ export default function MockupStudioPage() {
 
   const activeLayer = layers.find((l) => l.id === activeLayerId) || null;
 
+  const [presetImages, setPresetImages] = useState<Record<string, HTMLImageElement>>({});
+
+  useEffect(() => {
+    shirtPresets.forEach((preset) => {
+      const img = new Image();
+      img.src = preset.imageSrc;
+      img.onload = () => {
+        setPresetImages((prev) => ({ ...prev, [preset.id]: img }));
+      };
+    });
+  }, []);
+
   // Render Canvas Loop
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -87,7 +139,12 @@ export default function MockupStudioPage() {
     if (customShirtImg) {
       ctx.drawImage(customShirtImg, 0, 0, width, height);
     } else {
-      drawDefaultShirtBase(ctx, width, height, selectedPreset);
+      const activePresetImg = presetImages[selectedPreset.id];
+      if (activePresetImg) {
+        ctx.drawImage(activePresetImg, 0, 0, width, height);
+      } else {
+        drawDefaultShirtBase(ctx, width, height, selectedPreset);
+      }
     }
 
     // 2. Draw Printable Bounding Area Guide
@@ -95,7 +152,8 @@ export default function MockupStudioPage() {
     ctx.strokeStyle = "rgba(59, 130, 246, 0.4)";
     ctx.setLineDash([6, 6]);
     ctx.lineWidth = 2;
-    const printBox = { x: width * 0.26, y: height * 0.2, w: width * 0.48, h: height * 0.6 };
+    const boxDef = selectedPreset.printBox || { x: 0.28, y: 0.25, w: 0.44, h: 0.5 };
+    const printBox = { x: width * boxDef.x, y: height * boxDef.y, w: width * boxDef.w, h: height * boxDef.h };
     ctx.strokeRect(printBox.x, printBox.y, printBox.w, printBox.h);
 
     ctx.fillStyle = "rgba(59, 130, 246, 0.6)";
@@ -429,7 +487,12 @@ export default function MockupStudioPage() {
     if (customShirtImg) {
       ctx.drawImage(customShirtImg, 0, 0, 1080, 1350);
     } else {
-      drawDefaultShirtBase(ctx, 1080, 1350, selectedPreset);
+      const activePresetImg = presetImages[selectedPreset.id];
+      if (activePresetImg) {
+        ctx.drawImage(activePresetImg, 0, 0, 1080, 1350);
+      } else {
+        drawDefaultShirtBase(ctx, 1080, 1350, selectedPreset);
+      }
     }
 
     layers.forEach((layer) => {
