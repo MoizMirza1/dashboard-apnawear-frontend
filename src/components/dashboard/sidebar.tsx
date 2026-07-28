@@ -14,6 +14,7 @@ const mainLinks: NavigationLink[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["ADMIN", "PARTNER"] },
   { href: "/orders", label: "Orders", roles: ["ADMIN", "PARTNER"] },
   { href: "/products", label: "Products", roles: ["ADMIN", "PARTNER"] },
+  { href: "/mockups", label: "🎨 Mockup Studio", roles: ["ADMIN", "PARTNER"] },
   { href: "/purchases", label: "Stock Purchases", roles: ["ADMIN", "PARTNER"] },
   { href: "/inventory", label: "Current Stock", roles: ["ADMIN", "PARTNER"] },
   { href: "/expenses", label: "Expenses", roles: ["ADMIN", "PARTNER"] },
