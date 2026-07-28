@@ -292,14 +292,14 @@ export default function MockupStudioPage() {
       const img = new Image();
       img.onload = () => {
         const canvas = canvasRef.current;
-        const cW = canvas?.width || 800;
-        const cH = canvas?.height || 800;
+        const cW = canvas?.width || 1080;
+        const cH = canvas?.height || 1350;
 
-        // Auto scale to fit chest area cleanly
-        let targetW = 280;
+        // Auto scale to fit chest area cleanly on 1080x1350 canvas
+        let targetW = 380;
         let targetH = (img.height / img.width) * targetW;
-        if (targetH > 380) {
-          targetH = 380;
+        if (targetH > 500) {
+          targetH = 500;
           targetW = (img.width / img.height) * targetH;
         }
 
@@ -308,7 +308,7 @@ export default function MockupStudioPage() {
           name: file.name.replace(/\.[^/.]+$/, ""),
           img,
           x: cW * 0.5 - targetW / 2,
-          y: cH * 0.32 - targetH / 2,
+          y: cH * 0.35 - targetH / 2,
           width: targetW,
           height: targetH,
           rotation: 0,
@@ -398,12 +398,12 @@ export default function MockupStudioPage() {
     let y = cH * 0.35 - targetH / 2;
 
     if (position === "POCKET") {
-      targetW = 120;
+      targetW = 160;
       targetH = (activeLayer.img.height / activeLayer.img.width) * targetW;
       x = cW * 0.62 - targetW / 2;
       y = cH * 0.28 - targetH / 2;
     } else if (position === "FULL") {
-      targetW = 340;
+      targetW = 460;
       targetH = (activeLayer.img.height / activeLayer.img.width) * targetW;
       x = cW * 0.5 - targetW / 2;
       y = cH * 0.42 - targetH / 2;
@@ -421,16 +421,15 @@ export default function MockupStudioPage() {
 
     // Create high-res export canvas without selection lines
     const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = 1600;
-    exportCanvas.height = 1600;
+    exportCanvas.width = 1080;
+    exportCanvas.height = 1350;
     const ctx = exportCanvas.getContext("2d");
     if (!ctx) return;
 
-    const scale = 2; // 2x High-Res
     if (customShirtImg) {
-      ctx.drawImage(customShirtImg, 0, 0, 1600, 1600);
+      ctx.drawImage(customShirtImg, 0, 0, 1080, 1350);
     } else {
-      drawDefaultShirtBase(ctx, 1600, 1600, selectedPreset);
+      drawDefaultShirtBase(ctx, 1080, 1350, selectedPreset);
     }
 
     layers.forEach((layer) => {
@@ -439,8 +438,8 @@ export default function MockupStudioPage() {
       const exportCompositeMode: GlobalCompositeOperation = layer.blendMode === "normal" ? "source-over" : (layer.blendMode as GlobalCompositeOperation);
       ctx.globalCompositeOperation = exportCompositeMode;
 
-      const centerX = (layer.x + layer.width / 2) * scale;
-      const centerY = (layer.y + layer.height / 2) * scale;
+      const centerX = layer.x + layer.width / 2;
+      const centerY = layer.y + layer.height / 2;
 
       ctx.translate(centerX, centerY);
       ctx.rotate((layer.rotation * Math.PI) / 180);
@@ -451,7 +450,7 @@ export default function MockupStudioPage() {
         renderImage = processImageKeying(layer.img, layer.removeWhiteBg, layer.removeBlackBg, layer.bgThreshold);
       }
 
-      ctx.drawImage(renderImage, (-layer.width / 2) * scale, (-layer.height / 2) * scale, layer.width * scale, layer.height * scale);
+      ctx.drawImage(renderImage, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
       ctx.restore();
     });
 
@@ -617,13 +616,13 @@ export default function MockupStudioPage() {
 
           <canvas
             ref={canvasRef}
-            height={800}
+            height={1350}
             onMouseDown={handleMouseDown}
             onMouseLeave={handleMouseUp}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            style={{ width: "100%", maxWidth: "520px", height: "auto", border: "2px solid #cbd5e1", borderRadius: "12px", cursor: isDragging ? "grabbing" : "grab", backgroundColor: "#f8fafc" }}
-            width={800}
+            style={{ width: "100%", maxWidth: "480px", aspectRatio: "4 / 5", height: "auto", border: "2px solid #cbd5e1", borderRadius: "12px", cursor: isDragging ? "grabbing" : "grab", backgroundColor: "#f8fafc" }}
+            width={1080}
           />
           <p className="muted" style={{ fontSize: "0.8rem", marginTop: "8px" }}>💡 Click and drag graphic artwork inside print box to position.</p>
         </section>
