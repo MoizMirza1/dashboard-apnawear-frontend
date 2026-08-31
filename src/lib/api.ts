@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+function getBaseApiUrl(): string {
+  const raw = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").trim().replace(/\/+$/, "");
+  return raw.endsWith("/api") ? raw : `${raw}/api`;
+}
+
+const API_URL = getBaseApiUrl();
 
 export class ApiClientError extends Error {
   constructor(
@@ -12,7 +17,8 @@ export class ApiClientError extends Error {
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const response = await fetch(`${API_URL}${normalizedPath}`, {
     ...options,
     credentials: "include",
     headers: {
